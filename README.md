@@ -11,5 +11,6 @@ I approached the projects in the following order:
 2. Image Recognition
 3. Recommender System 
 4. Natural Language Processing
+5. Style Neural Network 
 
 
