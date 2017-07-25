@@ -7,15 +7,18 @@ https://medium.com/@gabrieltseng/natural-language-processing-with-quora-9737b407
 
 ## Exploration
 [Exploration.ipynb](https://github.com/GabrielTseng/LearningDataScience/blob/master/Natural_Language_Processing/Exploration.ipynb) 
+
 In this file, I test various ways of manipulating the data before inputting it into my neural network, including cleaning and adding leaky features. 
 
 ## Training
 [Training_Cleaned_NeuralNetwork.ipynb](https://github.com/GabrielTseng/LearningDataScience/blob/master/Natural_Language_Processing/Training_Cleaned_NeuralNetwork.ipynb)
+
 I then train to convergence a neural network (without leaky features). 
 
 ## SpaCy
 [SpaCy_NLP.ipynb](https://github.com/GabrielTseng/LearningDataScience/blob/master/Natural_Language_Processing/Spacy_NLP.ipynb)
-I briefly explore SpaCy's capabilities using this dataset, for potential future use. 
+
+I briefly explore [SpaCy](https://spacy.io/)'s capabilities using this dataset, for potential future use. 
 
 ## Further steps I could take
 
