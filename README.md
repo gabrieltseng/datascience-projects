@@ -14,5 +14,6 @@ I approached the projects in the following order:
 3. Recommender System 
 4. Natural Language Processing
 5. Style Neural Network 
+6. Timeseries data
 
 
