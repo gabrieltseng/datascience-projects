@@ -12,7 +12,7 @@ I approached the projects in the following order:
 1. Machine Learning - Titanic
 2. Image Recognition
 3. Recommender System 
-4. Natural Language Processing
+4. Natural Language Processing/Quora
 5. Style Neural Network 
 6. Timeseries data
 
