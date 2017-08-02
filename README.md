@@ -15,5 +15,6 @@ I approached the projects in the following order:
 4. Natural Language Processing/Quora
 5. Style Neural Network 
 6. Timeseries data
+7. Natural Language Processing/Detecting_Bullies
 
 
