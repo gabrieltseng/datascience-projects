@@ -16,5 +16,6 @@ I approached the projects in the following order:
 5. Style Neural Network 
 6. Timeseries data
 7. Natural Language Processing/Detecting Bullies
+8. Natural Language Processing/TwitterDisasters
 
 
