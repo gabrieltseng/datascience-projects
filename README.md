@@ -11,12 +11,12 @@ For all notebooks which require a GPU (anything which includes Keras or Tensorfl
 I approached the projects in the following order:
 (Projects I am particularly proud of are highlighted) 
 1. Machine Learning - Titanic
-2. Image Recognition
+2. **Image Recognition**
 3. Recommender System 
 4. Natural Language Processing/Quora
-5. Style Neural Network 
+5. **Style Neural Network** 
 6. Timeseries data
 7. Natural Language Processing/Detecting Bullies
-8. Natural Language Processing/TwitterDisasters
+8. **Natural Language Processing/TwitterDisasters**
 
 
