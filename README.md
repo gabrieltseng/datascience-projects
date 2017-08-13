@@ -11,7 +11,7 @@ For all notebooks which require a GPU (anything which includes Keras or Tensorfl
 I approached the projects in the following order: 
 
 1. **Image Recognition**
-..* https://medium.com/@gabrieltseng/learning-about-data-science-building-an-image-classifier-3f8252952329
+⋅⋅* https://medium.com/@gabrieltseng/learning-about-data-science-building-an-image-classifier-3f8252952329
 2. Recommender System 
 3. Natural Language Processing/Quora
 4. **Style Neural Network** 
