@@ -11,7 +11,7 @@ For all notebooks which require a GPU (anything which includes Keras or Tensorfl
 I approached the projects in the following order: 
 
 1. **Image Recognition**
-  In this project, I build a neural network in Keras to identify invasive plant species in images, as part of Kaggle's [Invasive Species Monitoring](https://www.kaggle.com/c/invasive-species-monitoring) competition.
+    In this project, I build a neural network in Keras to identify invasive plant species in images, as part of Kaggle's [Invasive Species Monitoring](https://www.kaggle.com/c/invasive-species-monitoring) competition.
 
   * [Post 1 on medium](https://medium.com/@gabrieltseng/learning-about-data-science-building-an-image-classifier-3f8252952329)
   * [Post 2 on medium](https://medium.com/towards-data-science/learning-about-data-science-building-an-image-classifier-part-2-a7bcc6d5e825)
