@@ -29,6 +29,9 @@ I approached the projects in the following order:
 
   * [Post on medium](https://medium.com/towards-data-science/natural-language-processing-with-quora-9737b40700c8) 
 4. **Style Neural Network** 
+
+    I experiment with generative neural networks by building a style neural network, which takes as input two images, and outputs an image with the content of the first image and the style of the second image. I improve the original neural style network ([A Neural Network of Artistic Style](https://arxiv.org/abs/1508.06576) by implementing two additional papers ([Incorporating Long Range Consistency in CNN based Texture Generation](https://arxiv.org/pdf/1606.01286.pdf) and [Stable and Controllable Neural Texture Synthesis and Style Transfer Using Histogram Losses](https://arxiv.org/abs/1701.08893)). 
+
   * [Post on medium](https://medium.com/towards-data-science/montreal-painted-by-huang-gongwang-neural-style-networks-ec1697b2ac54) 
 5. Natural Language Processing/Detecting Bullies
   * [Post on medium](https://medium.com/towards-data-science/using-scikit-learn-to-find-bullies-c47a1045d92f) 
