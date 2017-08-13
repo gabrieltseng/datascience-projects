@@ -8,15 +8,14 @@ https://medium.com/@gabrieltseng/
 For all notebooks which require a GPU (anything which includes Keras or Tensorflow), I use an [AWS P2 instance](https://aws.amazon.com/ec2/instance-types/p2/). 
 
 ## 
-I approached the projects in the following order:
-(Projects I am particularly proud of are highlighted) 
-1. Machine Learning - Titanic
-2. **Image Recognition**
-3. Recommender System 
-4. Natural Language Processing/Quora
-5. **Style Neural Network** 
-6. Timeseries data
-7. Natural Language Processing/Detecting Bullies
-8. **Natural Language Processing/TwitterDisasters**
+I approached the projects in the following order: 
+
+1. **Image Recognition**
+..1. https://medium.com/@gabrieltseng/learning-about-data-science-building-an-image-classifier-3f8252952329
+2. Recommender System 
+3. Natural Language Processing/Quora
+4. **Style Neural Network** 
+5. Natural Language Processing/Detecting Bullies
+6. **Natural Language Processing/TwitterDisasters**
 
 
