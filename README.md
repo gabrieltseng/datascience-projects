@@ -34,6 +34,9 @@ I approached the projects in the following order:
 
   * [Post on medium](https://medium.com/towards-data-science/montreal-painted-by-huang-gongwang-neural-style-networks-ec1697b2ac54) 
 5. Natural Language Processing/Detecting Bullies
+
+    I train machine learning algorithms on a smaller dataset (~3000 datapoints) to recognize bullying in online discussions, as part of Kaggle's [Detecting Insults in Social Commentary](https://www.kaggle.com/c/detecting-insults-in-social-commentary) competition. By implementing word embeddings, I significantly improve the competition's best result. 
+
   * [Post on medium](https://medium.com/towards-data-science/using-scikit-learn-to-find-bullies-c47a1045d92f) 
 6. **Natural Language Processing/TwitterDisasters**
   * [Post on medium](https://medium.com/@gabrieltseng/summarizing-tweets-in-a-disaster-e6b355a41732) 
