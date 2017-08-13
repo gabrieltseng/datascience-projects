@@ -4,7 +4,7 @@ I built an image recognition system to tackle [Kaggle's invasive species competi
 or not an invasive species of plant are present in an image. 
 
 ## Finetuning the VGG network 
-I begin by finetuning the VGG network ([link](https://medium.com/@gabrieltseng/learning-about-data-science-building-an-image-classifier-3f8252952329) to a blog post where I describe the process.), a neural network which has been pre-trained on the ImageNet corpus. 
+I begin by finetuning the VGG network ([link](https://medium.com/@gabrieltseng/learning-about-data-science-building-an-image-classifier-3f8252952329) to a blog post where I describe the process), a neural network which has been pre-trained on the ImageNet corpus. 
 
 ## Building other networks 
 I then finetune 2 other pre-trained neural networks, ResNet (which I train over two notebooks, ResNet and ResNet2) and V3. 
