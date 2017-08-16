@@ -33,4 +33,5 @@ I implement this paper over two ipython notebooks:
 2. In [Style Transfer with Histogram Loss.ipynb](https://github.com/GabrielTseng/LearningDataScience/blob/master/Style_Neural_Network/Style%20Transfer%20with%20Histogram%20Loss.ipynb), I add this to the original style and content loss functions. 
 
 ## Combining it all
-I add it all together in [Final_Style_Network.ipynb](https://github.com/GabrielTseng/LearningDataScience/blob/master/Style_Neural_Network/Final_Style_Network.ipynb)
+I add it all together in [Final_Style_Network.ipynb](https://github.com/GabrielTseng/LearningDataScience/blob/master/Style_Neural_Network/Final_Style_Network.ipynb) to yield the following image: 
+![](https://cdn-images-1.medium.com/max/1600/1*kYMl_ImM9RyXvJHgy7ln_Q.png)
