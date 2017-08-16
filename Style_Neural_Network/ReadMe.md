@@ -23,6 +23,9 @@ I implement this paper over two ipython notebooks:
 1. In [Spatial_Co_Occurences.ipynb](https://github.com/GabrielTseng/LearningDataScience/blob/master/Style_Neural_Network/Spatial_Co_Occurences.ipynb), I write the loss functions describing the spatially transformed outputs, and their Gramian matrices. 
 2. In [Style_Network_w_CoOccurence.ipynb](https://github.com/GabrielTseng/LearningDataScience/blob/master/Style_Neural_Network/Style_Network_w_CoOccurence.ipynb), I add the loss function to the already existing style and content loss functions. 
 
+This yields the following style output (compared to a normal style loss function):
+![](https://cdn-images-1.medium.com/max/1600/1*IZqCbKcmfF9QRXJvmwfY7Q.png)
+
 ## Histogram Losses 
 
 I implement this paper over two ipython notebooks: 
