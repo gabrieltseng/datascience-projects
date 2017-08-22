@@ -10,14 +10,16 @@ The tweets used are from [Twitter as a Lifeline: Human-annotated Twitter Corpora
 
 Link to blog post where I describe my approach: https://medium.com/@gabrieltseng/summarizing-tweets-in-a-disaster-e6b355a41732
 
+I repeat the exercise using both NLTK and spaCy, to compare the results of using different NLP tools. 
+
 ## [Tweets from IDs](https://github.com/GabrielTseng/LearningDataScience/blob/master/Natural_Language_Processing/TwitterDisasters/1%20-%20Tweets%20from%20IDs.ipynb) 
 This notebook involved using [Twython](https://twython.readthedocs.io/en/latest/) to get the tweets from the tweet IDs (since the above corpus only stores tweet ids and user ids) 
 
-## [Content Word Based Tweet Summarization (COWTS)](https://github.com/GabrielTseng/LearningDataScience/blob/master/Natural_Language_Processing/TwitterDisasters/2%20-%20COWTS.ipynb)
+## Content Word Based Tweet Summarization (COWTS)
 
 In this notebook, I identify content words in the tweets, and assign them tf-idf scores. I then use this information (and Integer Linear Programming) to generate a summary of the best tweets. 
 
-## [COntent Words Based ABstractive Summarization (COWABS)](https://github.com/GabrielTseng/LearningDataScience/blob/master/Natural_Language_Processing/TwitterDisasters/3%20-%20COWABS.ipynb) 
+## COntent Words Based ABstractive Summarization (COWABS)
 
 In this notebook, I use the tweet summarization created in COWTS to generate a word graph, and word paths through this word graph. I then use Integer Linear Programming to pick the best word paths, to create a summary which goes beyond the tweets to generate a paragraph. 
 
