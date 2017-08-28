@@ -30,4 +30,4 @@ In this notebook, I identify content words in the tweets, and assign them tf-idf
 
 In this notebook, I use the tweet summarization created in COWTS to generate a word graph, and word paths through this word graph. I then use Integer Linear Programming to pick the best word paths, to create a summary which goes beyond the tweets to generate a paragraph. 
 
-Unfortunately, COWABS doesn't generate a useful summary, I believe because of the tokenization method and abbreviations in words, which limit the ability of the [kenlm](https://kheafield.com/code/kenlm/) word probability model to quantify the linguistic quality of word paths. 
+
