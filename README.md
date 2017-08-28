@@ -43,6 +43,7 @@ I train machine learning algorithms on a smaller dataset (~3000 datapoints) to r
 
 I build a tweet summarizer ([COWTS](http://dl.acm.org/citation.cfm?id=2914600)), with the goal of providing a useful summary of tweets to a rescue team in a disaster scenario. This involves experimenting with Integer Linear Programming, term frequency - inverse document frequency scores and word graphs. 
 
-  * [Post on medium](https://medium.com/@gabrieltseng/summarizing-tweets-in-a-disaster-e6b355a41732) 
+  * [Post 1 on medium](https://medium.com/@gabrieltseng/summarizing-tweets-in-a-disaster-e6b355a41732) 
+  * [Post 2 on medium](https://medium.com/@gabrieltseng/summarizing-tweets-in-a-disaster-part-ii-67db021d378d)
 
 
