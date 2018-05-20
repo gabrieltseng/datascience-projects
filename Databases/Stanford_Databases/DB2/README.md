@@ -1,4 +1,4 @@
-### DB2: XML Data
+## DB2: XML Data
 
 The exercises for this minicourse were to write the DTD specification for the provided XML document.
 
