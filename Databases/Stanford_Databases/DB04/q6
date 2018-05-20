@@ -1,0 +1,6 @@
+\\ Find all pizzas that are eaten only by people younger than 24, or that cost less than $10 everywhere they're served.
+
+(\project_{pizza} Eats) \diff
+    (\project_{pizza} (Eats \join (\project_{name} \select_{age >= 24} Person)))
+\union
+((\project_{pizza} Serves) \diff (\project_{pizza} \select_{price > 10} Serves))

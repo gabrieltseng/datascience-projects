@@ -1,0 +1,6 @@
+// Find the names of all females who have eaten a pizza served by Straw Hat
+
+\project_{name}
+(\select_{gender='female'}Person
+\join
+(\select_{pizzeria='Straw Hat'} Serves \join Eats))

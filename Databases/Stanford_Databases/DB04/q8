@@ -1,0 +1,9 @@
+\\ Find all pizzerias that serve only pizzas eaten by people over 30.
+
+\project_{pizzeria} Serves
+\diff
+(\project_{pizzeria}(Serves \join (
+\project_{pizza} (Eats \join
+((\project_{pizza} Eats)
+\diff
+(\project_{pizza} (Eats \join \project_{name} \select_{age > 30} Person)))))))
