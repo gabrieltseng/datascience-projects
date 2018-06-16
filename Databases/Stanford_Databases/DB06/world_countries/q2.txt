@@ -1,0 +1,5 @@
+# Return the names of all cities that have the same name as the country in which they are located.
+
+for $country in doc("countries.xml")//country
+return (for $city in $country/city where $city/name = $country/@name
+return $city/name)

@@ -1,0 +1,17 @@
+# Return the countries with the highest and lowest population densities.
+
+for $max_country in doc("countries.xml")//country
+for $min_country in doc("countries.xml")//country
+for $max_density in ($max_country/@population div $max_country/@area)
+for $min_density in ($min_country/@population div $min_country/@area)
+ where $max_density = max(for $country in doc("countries.xml")//country
+         return $country/@population div $country/@area)
+    and $min_density = min(for $country in doc("countries.xml")//country
+         return $country/@population div $country/@area)
+ return <result>
+         <highest density="{$max_country/@population div $max_country/@area}">
+             {data($max_country/@name)}
+        </highest>
+        <lowest density="{$min_country/@population div $min_country/@area}">
+             {data($min_country/@name)}
+        </lowest>

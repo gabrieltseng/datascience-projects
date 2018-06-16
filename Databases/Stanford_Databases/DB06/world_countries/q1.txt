@@ -1,0 +1,5 @@
+# Return the area of Mongolia.
+
+for $country in doc("countries.xml")//country
+where $country/@name = 'Mongolia'
+return data($country/@area)

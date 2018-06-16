@@ -1,0 +1,6 @@
+#  Return the average population of Russian-speaking countries.
+
+avg(for $country in doc("countries.xml")//country
+    where some $language in $country/language
+        satisfies $language = "Russian"
+    return data($country/@population))

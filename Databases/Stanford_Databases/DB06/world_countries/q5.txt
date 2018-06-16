@@ -1,0 +1,16 @@
+# Create a list of French-speaking and German-speaking countries.
+
+<result>
+    <French>
+    {for $country in doc("countries.xml")//country
+     where some $language in $country/language
+     satisfies $language = 'French'
+     return <country> {data($country/@name)} </country>}
+    </French>
+    <German>
+    {for $country in doc("countries.xml")//country
+     where some $language in $country/language
+     satisfies $language = 'German'
+     return <country> {data($country/@name)} </country>}
+    </German>
+</result>

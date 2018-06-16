@@ -1,0 +1,7 @@
+# Return the names of all countries that have at least three cities with population greater than 3 million.
+
+for $country in doc("countries.xml")//country
+    where count(for $city in $country/city
+                where $city/population > 3000000
+                return $city/name) > 3
+return data($country/@name)
