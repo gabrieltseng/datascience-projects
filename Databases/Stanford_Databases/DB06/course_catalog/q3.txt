@@ -1,0 +1,3 @@
+# Return titles of courses with enrollment greater than 500.
+
+doc("courses.xml")//Course[@Enrollment > 500]/Title

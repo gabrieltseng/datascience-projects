@@ -1,0 +1,3 @@
+# Return last names of all department chairs.
+
+doc("courses.xml")/Course_Catalog/Department/Chair/Professor/Last_Name

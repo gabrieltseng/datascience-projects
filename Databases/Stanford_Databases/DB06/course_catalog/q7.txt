@@ -1,0 +1,3 @@
+# Return the average enrollment of all courses in the CS department.
+
+avg(doc("courses.xml")//Course/@Enrollment)

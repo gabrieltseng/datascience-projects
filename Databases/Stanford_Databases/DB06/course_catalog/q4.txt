@@ -1,0 +1,3 @@
+# Return titles of departments that have some course that takes "CS106B" as a prerequisite.
+
+doc("courses.xml")//Department[Course/Prerequisites/Prereq = 'CS106B']/Title

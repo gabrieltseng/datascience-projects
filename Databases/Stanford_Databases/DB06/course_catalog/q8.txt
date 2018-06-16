@@ -1,0 +1,4 @@
+# Return last names of instructors teaching at least one course that has "system" in its description and
+# enrollment greater than 100.
+
+doc("courses.xml")//Course[contains(Description, "system") and @Enrollment > 100]//Last_Name

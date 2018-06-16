@@ -1,0 +1,3 @@
+#  Return last names of all professors or lecturers who use a middle initial. Don't worry about eliminating duplicates.
+
+doc("courses.xml")//(Professor | Lecturer)[Middle_Initial]/Last_Name
