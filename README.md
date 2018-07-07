@@ -13,6 +13,7 @@ I approached the projects in the following order (latest to earliest):
 <details>
 <summary><strong><em>Table of Contents</em></strong></summary>
 
+* [Stanford Databases Course](#StanfordDatabases)
 * [ThinkBayes (Bayesian Statistics)](#ThinkBayes)
 * [Twitter Disasters (NLP)](#Twitter)
 * [Detecting Bullies (NLP)](#Bullies)
@@ -22,6 +23,12 @@ I approached the projects in the following order (latest to earliest):
 * [Image Recognition](#ImageRecognition)
 
 </details>
+
+### [Databases/Stanford Databases](Databases/Stanford_Databases)<a name="StanfordDatabases"></a>
+
+I work through the [Stanford Databases](https://lagunita.stanford.edu/courses/DB/2014/SelfPaced/about) by Jennifer Widom.
+The folder contains my solutions to the exercises. In the case where there were no exercises (i.e. there was only a quiz),
+I only added the statement of accomplishment.
 
 ### [Bayesian Statistics/ThinkBayes](Bayesian_statistics/ThinkBayes)<a name="ThinkBayes"></a>
 
