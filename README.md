@@ -24,45 +24,45 @@ I approached the projects in the following order (latest to earliest):
 
 </details>
 
-### [Databases/Stanford Databases](Databases/Stanford_Databases)<a name="StanfordDatabases"></a>
+### [Stanford Databases](databases/stanford_databases)<a name="StanfordDatabases"></a>
 
 I work through the [Stanford Databases](https://lagunita.stanford.edu/courses/DB/2014/SelfPaced/about) by Jennifer Widom.
 The folder contains my solutions to the exercises. In the case where there were no exercises (i.e. there was only a quiz),
 I only added the statement of accomplishment.
 
-### [Bayesian Statistics/ThinkBayes](Bayesian_statistics/ThinkBayes)<a name="ThinkBayes"></a>
+### [Think Bayes](bayesian_statistics/think_bayes)<a name="ThinkBayes"></a>
 
 I work through [Think Bayes](http://greenteapress.com/wp/think-bayes/) by Allen Downey. The folder contains my solutions
 to the exercises.
 
 I took the exercises from both the book, and the [GitHub repository](https://github.com/AllenDowney/ThinkBayes2)
 
-### [Natural Language Processing/TwitterDisasters](Natural_Language_Processing/TwitterDisasters)<a name="Twitter"></a>
+### [Twitter Disasters](natural_language_processing/twitter_disasters)<a name="Twitter"></a>
 
 I build a tweet summarizer ([COWTS](http://dl.acm.org/citation.cfm?id=2914600)), with the goal of providing a useful summary of tweets to a rescue team in a disaster scenario. This involves experimenting with Integer Linear Programming, term frequency - inverse document frequency scores and word graphs. 
 
   * [Post 1 on medium](https://medium.com/@gabrieltseng/summarizing-tweets-in-a-disaster-e6b355a41732) 
   * [Post 2 on medium](https://medium.com/@gabrieltseng/summarizing-tweets-in-a-disaster-part-ii-67db021d378d)
 
-### [Natural Language Processing/Detecting Bullies](Natural_Language_Processing/Detecting_Bullies)<a name="Bullies"></a>
+### [Detecting Bullies](natural_language_processing/detecting_bullies)<a name="Bullies"></a>
 
 I train machine learning algorithms on a smaller dataset (~3000 datapoints) to recognize bullying in online discussions, as part of Kaggle's [Detecting Insults in Social Commentary](https://www.kaggle.com/c/detecting-insults-in-social-commentary) competition. By implementing word embeddings, I significantly improve the competition's best result. 
 
   * [Post on medium](https://medium.com/towards-data-science/using-scikit-learn-to-find-bullies-c47a1045d92f)
 
-### [Style Neural Network](Style_Neural_Network)<a name="StyleNeuralNetwork"></a>
+### [Style Neural Network](computer_vision/style_neural_network)<a name="StyleNeuralNetwork"></a>
 
 I experiment with generative neural networks by building a style neural network, which takes as input two images, and outputs an image with the content of the first image and the style of the second image. I improve the original neural style network ([A Neural Network of Artistic Style](https://arxiv.org/abs/1508.06576)) by implementing two additional papers ([Incorporating Long Range Consistency in CNN based Texture Generation](https://arxiv.org/pdf/1606.01286.pdf) and [Stable and Controllable Neural Texture Synthesis and Style Transfer Using Histogram Losses](https://arxiv.org/abs/1701.08893)). 
 
   * [Post on medium](https://medium.com/towards-data-science/montreal-painted-by-huang-gongwang-neural-style-networks-ec1697b2ac54) 
   
-### [Natural Language Processing/Quora](Natural_Language_Processing/Quora)<a name="Quora"></a>
+### [Quora](natural_language_processing/quora)<a name="Quora"></a>
 
 I build a recurrant neural network based on the [GloVe](https://nlp.stanford.edu/projects/glove/) word embeddings to recognize the intent of questions posted on [Quora](https://www.quora.com) as part of Kaggle's [Quora Question Pairs](https://www.kaggle.com/c/quora-question-pairs) competition. 
 
   * [Post on medium](https://medium.com/towards-data-science/natural-language-processing-with-quora-9737b40700c8) 
 
-### [Recommender System](Recommender_System)<a name="recsys"></a>
+### [Recommender System](recommender_system)<a name="recsys"></a>
 
 In this project, I use the [Movie Lens](https://grouplens.org/datasets/movielens/) dataset to explore a variety of data science tools, including dimensionality reduction and word embeddings. I build a recommender system using a recurrant neural network, and implement Google's [Wide and Deep](https://arxiv.org/abs/1606.07792) recommender neural network. 
 
@@ -70,7 +70,7 @@ In this project, I use the [Movie Lens](https://grouplens.org/datasets/movielens
   * [Post 2 on medium](https://medium.com/@gabrieltseng/clustering-and-collaborative-filtering-implementing-neural-networks-bccf2f9ff988) 
   * [Post 3 on medium](https://medium.com/towards-data-science/clustering-and-collaborative-filtering-using-word-embeddings-56ee60f0575d)
 
-### [Image Recognition](Image_Recognition)<a name="ImageRecognition"></a>
+### [Image Recognition](computer_vision/image_recognition)<a name="ImageRecognition"></a>
 
 In this project, I finetune and ensemble a variety of pretrained convolutional neural networks in Keras to identify invasive plant species in images, as part of Kaggle's [Invasive Species Monitoring](https://www.kaggle.com/c/invasive-species-monitoring) competition. 
 
