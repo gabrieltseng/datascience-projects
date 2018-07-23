@@ -20,7 +20,7 @@ def load_image(image_path):
     image_array = cv2.imread(image_path.as_posix())
 
     # [2, 1, 0] compared to ::-1 prevents a stride problem with pytorch
-    return image_array[:, :, [2, 1, 0]]
+    return cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
 
 
 def xml_to_dict(file_path, image_folder_path=Path('VOC2007/JPEGImages')):

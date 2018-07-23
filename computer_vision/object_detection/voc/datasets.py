@@ -32,40 +32,46 @@ class ImageDataset(VOCDataset, Dataset):
             assert normalizer in self.normalizing_dict, "Normalizer not one of {}". \
                 format([val for val in self.normalizing_dict.keys()])
         self.normalizer = normalizer
-        self.resize= resize
+        self.resize = resize
+
+        largest_items = [keep_largest_box(xml_to_dict(ano))['objects'][0]
+                        for ano in self.annotations_files]
+
+        # first, the bounding boxes
+        bounding_boxes = [item['coordinates'] for item in largest_items]
+        self.bounding_boxes = torch.from_numpy(np.asarray(bounding_boxes)).float()
+
+        # next, the item labels
+        label_names = [item['name'] for item in largest_items]
+        # turn the labels into integer classes
+        self.label2class = {val: idx for idx, val in enumerate(set(label_names))}
+        label_classes = [self.label2class[item] for item in label_names]
+        self.labels = torch.from_numpy(np.asarray(label_classes)).int()
+
+    def get_labels_from_classes(self):
+        return self.label2class
 
     def _normalize(self, image):
         if self.normalizer:
             mean = self.normalizing_dict[self.normalizer]['mean']
             std = self.normalizing_dict[self.normalizer]['std']
-            return (image - mean) / std
-        else:
-            return image
+            image = (image - mean) / std
+        # in addition, roll the axis so that they suit pytorch
+        return image.swapaxes(2, 0)
 
     def _resize(self, image):
         if self.resize:
             width, height = self.resize
-            return cv2.resize(image, (width, height),
-                              interpolation=cv2.INTER_AREA)
-        else:
-            return image
+            image = cv2.resize(image, (width, height),
+                               interpolation=cv2.INTER_AREA)
+        return image
 
     def __getitem__(self, index):
         annotation = xml_to_dict(self.annotations_files[index])
         image_path = annotation['image_path']
         image = self._normalize(self._resize(load_image(image_path)))
-        return torch.from_numpy(image)
+        return torch.from_numpy(image).float(), \
+            self.bounding_boxes[index], self.labels[index]
 
     def __len__(self):
         return len(self.annotations_files)
-
-
-class BoundingBoxDataset(VOCDataset, TensorDataset):
-
-    def __init__(self, annotations=Path('VOC2007/Annotations')):
-        super().__init__()
-
-        # in this case, we'll load the whole tensor, since it will be much faster
-        bounding_boxes = [keep_largest_box(xml_to_dict(ano))['objects'][0]['coordinates']
-                          for ano in self.annotations_files]
-        self.tensors = torch.from_numpy(np.transpose(np.asarray(bounding_boxes)))
