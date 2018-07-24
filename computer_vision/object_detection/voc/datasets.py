@@ -22,8 +22,10 @@ class VOCDataset(object):
 class ImageDataset(VOCDataset, Dataset):
 
     def __init__(self, annotations=Path('VOC2007/Annotations'), normalizer=None,
-                 resize=None):
+                 resize=None, device=torch.device("cpu")):
         super().__init__()
+
+        self.device = device
         self.normalizing_dict = {
             'imagenet': {'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225]},
             'inception': {'mean': [0.5, 0.5, 0.5], 'std': [0.5, 0.5, 0.5]}
@@ -39,14 +41,15 @@ class ImageDataset(VOCDataset, Dataset):
 
         # first, the bounding boxes
         bounding_boxes = [item['coordinates'] for item in largest_items]
-        self.bounding_boxes = torch.from_numpy(np.asarray(bounding_boxes)).float()
+        self.bounding_boxes = np.asarray(bounding_boxes)
 
         # next, the item labels
         label_names = [item['name'] for item in largest_items]
         # turn the labels into integer classes
         self.label2class = {val: idx for idx, val in enumerate(set(label_names))}
         label_classes = [self.label2class[item] for item in label_names]
-        self.labels = torch.from_numpy(np.asarray(label_classes)).int()
+        self.labels = torch.tensor(np.asarray(label_classes), dtype=torch.long,
+                                   device=self.device)
 
     def get_labels_from_classes(self):
         return self.label2class
@@ -59,19 +62,32 @@ class ImageDataset(VOCDataset, Dataset):
         # in addition, roll the axis so that they suit pytorch
         return image.swapaxes(2, 0)
 
-    def _resize(self, image):
+    def _resize(self, image, bounding_box):
         if self.resize:
             width, height = self.resize
+            # next, adjust the coordinates
+            xmin, ymin, xmax, ymax = bounding_box
+
+            x_ratio = width / image.shape[1]
+            y_ratio = height / image.shape[0]
+            bounding_box = np.asarray([xmin * x_ratio, ymin * y_ratio,
+                                      xmax * x_ratio, ymax * y_ratio])
+
+            # next, resize the image (this part is easy)
             image = cv2.resize(image, (width, height),
                                interpolation=cv2.INTER_AREA)
-        return image
+
+        return image, bounding_box
 
     def __getitem__(self, index):
         annotation = xml_to_dict(self.annotations_files[index])
         image_path = annotation['image_path']
-        image = self._normalize(self._resize(load_image(image_path)))
-        return torch.from_numpy(image).float(), \
-            self.bounding_boxes[index], self.labels[index]
+        image, bb = self._resize(load_image(image_path),
+                                 self.bounding_boxes[index])
+        image = self._normalize(image)
+        return torch.tensor(image, dtype=torch.float, device=self.device), \
+               torch.tensor(bb, dtype=torch.double, device=self.device), \
+               self.labels[index]
 
     def __len__(self):
         return len(self.annotations_files)

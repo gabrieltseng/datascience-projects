@@ -27,6 +27,8 @@ class SODNet(nn.Module):
         f = self.pretrained(x)
         f = f.view(f.size(0), -1)
 
-        bounding_boxes = self.finetune_sod(f)
+        # multiply by 224, to make sure the bounding box coordinates are
+        # within the image. This points the neural net in the right direction
+        bounding_boxes = self.finetune_softmax(self.finetune_sod(f)) * 224
         labels = self.finetune_softmax(self.finetune_label(f))
         return bounding_boxes, labels
