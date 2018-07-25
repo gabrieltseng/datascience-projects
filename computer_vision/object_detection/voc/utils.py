@@ -53,21 +53,14 @@ def xml_to_dict(file_path, image_folder_path=Path('VOC2007/JPEGImages')):
     return xml_dict
 
 
-def show_annotation(annotation):
-    """
-    Given a dictionary of the annotation,
-    plots the corresponding image with the bounding boxes
-    """
-    fig, ax = plt.subplots(figsize=(10, 10))
-    # first, load up the image
-    image_path = annotation['image_path']
-    image_to_plot = load_image(image_path)
-    ax.imshow(image_to_plot)
+def plot_image(image, bounding_boxes, labels, ax=None):
+    show_plot = False
+    if not ax:
+        fig, ax = plt.subplots(figsize=(10, 10))
+        show_plot = True
+    ax.imshow(image)
 
-    # then, all the bounding boxes
-    for anno_id, anno in annotation['objects'].items():
-        bounding_box = anno['coordinates']
-        label = anno['name']
+    for bounding_box, label in zip(bounding_boxes, labels):
         xmin, ymin, xmax, ymax = bounding_box
         width = xmax - xmin
         height = ymax - ymin
@@ -77,10 +70,29 @@ def show_annotation(annotation):
                                  facecolor='none', label=label)
         ax.add_patch(rect)
         ax.text(xmin, ymin, label, color='xkcd:bright green', fontsize=12)
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
 
-    # finally, remove the axes
-    plt.gca().axes.get_yaxis().set_visible(False)
-    plt.gca().axes.get_xaxis().set_visible(False)
+    if show_plot:
+        plt.show()
+
+
+def show_annotation(annotation):
+    """
+    Given a dictionary of the annotation,
+    plots the corresponding image with the bounding boxes
+    """
+    # first, load up the image
+    image_path = annotation['image_path']
+    image_to_plot = load_image(image_path)
+
+    # then, all the bounding boxes and labels
+    bounding_boxes = []
+    labels = []
+    for anno_id, anno in annotation['objects'].items():
+        bounding_boxes.append(anno['coordinates'])
+        labels.append(anno['name'])
+    plot_image(image_to_plot, bounding_boxes, labels)
 
     plt.show()
 
@@ -117,3 +129,28 @@ def keep_largest_box(annotation):
 
     return_annotation['objects'] = {0: largest_item}
     return return_annotation
+
+
+def normalize(image, mean=None, std=None):
+    """
+    Given an image, and a dataset mean and standard deviation,
+    normalize the image according to the dataset means and standard deviations
+
+    If no mean and std are passed, this method will just swap the image axes so they
+    are suitable for pytorch
+    """
+    if mean and std:
+        image = (image - mean) / std
+    # in addition, roll the axis so that they suit pytorch
+    return image.swapaxes(2, 0)
+
+
+def denormalize(image, mean=None, std=None):
+    """
+    Given a normalized image, and the statistics according to which it was normalized,
+    denormalize it
+    """
+    image = image.swapaxes(0, 2)
+    if mean and std:
+        image = (image * std) + mean
+    return image.astype(int)
