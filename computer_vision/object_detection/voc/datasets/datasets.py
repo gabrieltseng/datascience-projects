@@ -4,8 +4,10 @@ import cv2
 from pathlib import Path
 
 import numpy as np
+import random
 
 from voc.utils import xml_to_dict, load_image, keep_largest_box, normalize
+from .transforms import no_change, horizontal_flip, vertical_flip, colour_jitter
 
 
 class VOCDataset(object):
@@ -32,7 +34,8 @@ class ImageDataset(VOCDataset, Dataset):
     """
 
     def __init__(self, annotations=Path('VOC2007/Annotations'), mask=None, normalizer=None,
-                 resize=None, device=torch.device("cpu"), label2class=None):
+                 resize=None, random_transform=False, device=torch.device("cpu"),
+                 label2class=None):
         """
         annotations: a pathlib Path to the annotations (i.e. the xml files)
         mask: if making a train and val dataset, pass a mask to differentiate the training
@@ -40,6 +43,7 @@ class ImageDataset(VOCDataset, Dataset):
         normalizer: one of {'imagenet', 'inception'}; how to normalize the images
         resize: a (height, width) tuple to resize the images to. If not None, the bounding
             box coordinates will also be appropriately resized
+        random_transform: boolean, whether or not to randomly transform the images
         device: the device on which the tensors should be. Default is the CPU
         """
 
@@ -55,6 +59,7 @@ class ImageDataset(VOCDataset, Dataset):
                 format([val for val in self.normalizing_dict.keys()])
         self.normalizer = normalizer
         self.resize = resize
+        self.random_transform = random_transform
 
         largest_items = [keep_largest_box(xml_to_dict(ano))['objects'][0]
                          for ano in self.annotations_files]
@@ -92,7 +97,6 @@ class ImageDataset(VOCDataset, Dataset):
     def _resize(self, image, bounding_box):
         if self.resize:
             width, height = self.resize
-            # next, adjust the coordinates
             xmin, ymin, xmax, ymax = bounding_box
 
             x_ratio = width / image.shape[1]
@@ -100,10 +104,22 @@ class ImageDataset(VOCDataset, Dataset):
             bounding_box = np.asarray([xmin * x_ratio, ymin * y_ratio,
                                       xmax * x_ratio, ymax * y_ratio])
 
-            # next, resize the image (this part is easy)
             image = cv2.resize(image, (width, height),
                                interpolation=cv2.INTER_AREA)
 
+        return image, bounding_box
+
+    def _transform_image(self, image, bounding_box):
+
+        transforms = [
+            no_change,
+            horizontal_flip,
+            vertical_flip,
+            colour_jitter,
+        ]
+
+        chosen_function = random.choice(transforms)
+        image, bounding_box = chosen_function(image, bounding_box)
         return image, bounding_box
 
     def __getitem__(self, index):
@@ -111,6 +127,8 @@ class ImageDataset(VOCDataset, Dataset):
         image_path = annotation['image_path']
         image, bb = self._resize(load_image(image_path),
                                  self.bounding_boxes[index])
+        if self.random_transform:
+            image, bb = self._transform_image(image, bb)
         image = self._normalize(image)
         return torch.tensor(image, dtype=torch.float, device=self.device), \
             torch.tensor(bb, dtype=torch.double, device=self.device), \

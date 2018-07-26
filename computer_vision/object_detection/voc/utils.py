@@ -19,7 +19,6 @@ def load_image(image_path):
     """
     image_array = cv2.imread(image_path.as_posix())
 
-    # [2, 1, 0] compared to ::-1 prevents a stride problem with pytorch
     return cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
 
 
