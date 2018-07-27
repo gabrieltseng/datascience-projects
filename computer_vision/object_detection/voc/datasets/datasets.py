@@ -7,7 +7,7 @@ import numpy as np
 import random
 
 from voc.utils import xml_to_dict, load_image, keep_largest_box, normalize
-from .transforms import no_change, horizontal_flip, vertical_flip, colour_jitter
+from .transforms import no_change, horizontal_flip, colour_jitter, rotate
 
 
 class VOCDataset(object):
@@ -114,8 +114,8 @@ class ImageDataset(VOCDataset, Dataset):
         transforms = [
             no_change,
             horizontal_flip,
-            vertical_flip,
             colour_jitter,
+            rotate,
         ]
 
         chosen_function = random.choice(transforms)

@@ -24,11 +24,12 @@ class SODNet(nn.Module):
 
         # in addition, we will have a multiclass classifier
         self.finetune_label = nn.Linear(256, num_classes)
+        self.dropout = nn.Dropout()
 
     def forward(self, x):
         f = self.pretrained(x)
-        f = f.view(f.size(0), -1)
-        f = self.batchnorm(nn.functional.relu(self.finetune_interim(f)))
+        f = self.dropout(nn.functional.relu(f.view(f.size(0), -1)))
+        f = self.dropout(self.batchnorm(nn.functional.relu(self.finetune_interim(f))))
 
         # multiply by 224, to make sure the bounding box coordinates are
         # within the image. This points the neural net in the right direction
