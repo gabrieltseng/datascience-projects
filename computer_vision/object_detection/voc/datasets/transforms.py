@@ -60,7 +60,7 @@ def rotate(image, bb):
     image = image.astype(np.uint8, copy=False)
     height, width, _ = image.shape
     center = (width // 2,  height // 2)
-    rotation_angle = random.randint(0, 30)
+    rotation_angle = random.randint(10, 30)
     M = cv2.getRotationMatrix2D(center, rotation_angle, 1)
     rotated = cv2.warpAffine(image, M, (width, height))
 

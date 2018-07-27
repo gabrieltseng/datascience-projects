@@ -17,23 +17,24 @@ class SODNet(nn.Module):
         self.pretrained = nn.Sequential(*list(resnet.children())[:-2])
 
         self.finetune_interim = nn.Linear(25088, 256)
-        self.batchnorm = nn.BatchNorm1d(256)
+        self.finetune_batchnorm = nn.BatchNorm1d(256)
 
         # we will have 4 output classes (xmin, ymin, xmax, ymax)
-        self.finetune_sod = nn.Linear(256, 4)
+        self.finetune_bb = nn.Linear(256, 4)
 
         # in addition, we will have a multiclass classifier
         self.finetune_label = nn.Linear(256, num_classes)
-        self.dropout = nn.Dropout()
+        self.finetune_dropout = nn.Dropout()
 
     def forward(self, x):
         f = self.pretrained(x)
-        f = self.dropout(nn.functional.relu(f.view(f.size(0), -1)))
-        f = self.dropout(self.batchnorm(nn.functional.relu(self.finetune_interim(f))))
+        f = self.finetune_dropout(nn.functional.relu(f.view(f.size(0), -1)))
+        f = nn.functional.relu(self.finetune_interim(f))
+        f = self.finetune_dropout(self.finetune_batchnorm(f))
 
         # multiply by 224, to make sure the bounding box coordinates are
         # within the image. This points the neural net in the right direction
-        bounding_boxes = nn.functional.sigmoid((self.finetune_sod(f))) * 224
+        bounding_boxes = nn.functional.sigmoid((self.finetune_bb(f))) * 224
         labels = self.finetune_label(f)
         return bounding_boxes, labels
 

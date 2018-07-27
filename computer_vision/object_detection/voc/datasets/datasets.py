@@ -101,6 +101,8 @@ class ImageDataset(VOCDataset, Dataset):
 
             x_ratio = width / image.shape[1]
             y_ratio = height / image.shape[0]
+
+            # TODO check that xmin is xmin and xmax is xmax
             bounding_box = np.asarray([xmin * x_ratio, ymin * y_ratio,
                                       xmax * x_ratio, ymax * y_ratio])
 
@@ -120,6 +122,14 @@ class ImageDataset(VOCDataset, Dataset):
 
         chosen_function = random.choice(transforms)
         image, bounding_box = chosen_function(image, bounding_box)
+
+        # ensure min and max are correct
+        xmin, ymin, xmax, ymax = bounding_box
+        bounding_box = [min([xmin, xmax]),
+                        min([ymin, ymax]),
+                        max([xmin, xmax]),
+                        max([ymin, ymax])]
+
         return image, bounding_box
 
     def __getitem__(self, index):
