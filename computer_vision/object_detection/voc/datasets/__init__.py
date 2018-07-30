@@ -1,1 +1,1 @@
-from voc.datasets.datasets import VOCDataset, ImageDataset
+from voc.datasets.datasets import VOCDataset, MultiImageDataset, SingleImageDataset

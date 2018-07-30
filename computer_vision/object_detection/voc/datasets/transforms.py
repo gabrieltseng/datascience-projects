@@ -12,39 +12,46 @@ def no_change(image, bb):
     return image, bb
 
 
-def horizontal_flip(image, bb):
+def horizontal_flip(image, bbs):
     image = cv2.flip(image, 1)
-    xmin, ymin, xmax, ymax = bb
     width = image.shape[1]
 
     # note that xmax becomes xmin,
     # and vice versa
-    xmin_flip = width - xmax
-    xmax_flip = width - xmin
+    output_bbs = []
+    for bb in bbs:
+        xmin, ymin, xmax, ymax = bb
+        xmin_flip = width - xmax
+        xmax_flip = width - xmin
 
-    bb = [xmin_flip, ymin,
-          xmax_flip, ymax]
+        bb = [xmin_flip, ymin,
+              xmax_flip, ymax]
+        output_bbs.append(bb)
 
-    return image, bb
+    return image, output_bbs
 
 
-def vertical_flip(image, bb):
+def vertical_flip(image, bbs):
     image = cv2.flip(image, 0)
-    xmin, ymin, xmax, ymax = bb
-    height = image.shape[0]
 
-    # note that ymax becomes ymin,
-    # and vice versa
-    ymin_flip = height - ymax
-    ymax_flip = height - ymin
+    output_bbs = []
+    for bb in bbs:
+        xmin, ymin, xmax, ymax = bb
+        height = image.shape[0]
 
-    bb = [xmin, ymin_flip,
-          xmax, ymax_flip]
+        # note that ymax becomes ymin,
+        # and vice versa
+        ymin_flip = height - ymax
+        ymax_flip = height - ymin
 
-    return image, bb
+        bb = [xmin, ymin_flip,
+              xmax, ymax_flip]
+        output_bbs.apppend(bb)
+
+    return image, output_bbs
 
 
-def colour_jitter(image, bb):
+def colour_jitter(image, bbs):
     height, width, _ = image.shape
     zitter = np.zeros_like(image)
 
@@ -53,10 +60,10 @@ def colour_jitter(image, bb):
         zitter[:, :, channel] = noise
 
     image = cv2.add(image, zitter)
-    return image, bb
+    return image, bbs
 
 
-def rotate(image, bb):
+def rotate(image, bbs):
     image = image.astype(np.uint8, copy=False)
     height, width, _ = image.shape
     center = (width // 2,  height // 2)
@@ -65,17 +72,21 @@ def rotate(image, bb):
     rotated = cv2.warpAffine(image, M, (width, height))
 
     # next, we need to also rotate the coordinates
-    xmin, ymin, xmax, ymax = bb
+    output_bbs = []
+    for bb in bbs:
+        xmin, ymin, xmax, ymax = bb
 
-    stacked_coordinates = np.vstack((
-        np.dot(M, [xmin, ymax, 1]),
-        np.dot(M, [xmin, ymin, 1]),
-        np.dot(M, [xmax, ymin, 1]),
-        np.dot(M, [xmax, ymax, 1])))
+        stacked_coordinates = np.vstack((
+            np.dot(M, [xmin, ymax, 1]),
+            np.dot(M, [xmin, ymin, 1]),
+            np.dot(M, [xmax, ymin, 1]),
+            np.dot(M, [xmax, ymax, 1])))
 
-    xmin = min(x[0] for x in stacked_coordinates)
-    ymin = min(x[1] for x in stacked_coordinates)
-    xmax = max(x[0] for x in stacked_coordinates)
-    ymax = max(x[1] for x in stacked_coordinates)
+        xmin = min(x[0] for x in stacked_coordinates)
+        ymin = min(x[1] for x in stacked_coordinates)
+        xmax = max(x[0] for x in stacked_coordinates)
+        ymax = max(x[1] for x in stacked_coordinates)
+        bb = [xmin, ymin, xmax, ymax]
+        output_bbs.append(bb)
 
-    return rotated, [xmin, ymin, xmax, ymax]
+    return rotated, output_bbs
