@@ -247,3 +247,12 @@ class MultiImageDataset(VOCDataset):
         return torch.tensor(image, dtype=torch.float, device=self.device), \
                torch.tensor(bb, dtype=torch.double, device=self.device), \
                torch.tensor(self.labels[index], dtype=torch.long, device=self.device)
+
+
+def collate_im_bb_lab(batch):
+    # this allows us to handle the fact that the bbs and
+    # labels will be of different sizes
+    ims = torch.stack([item[0] for item in batch], 0)
+    bbs = [item[1] for item in batch]
+    labels = [item[2] for item in batch]
+    return ims, bbs, labels

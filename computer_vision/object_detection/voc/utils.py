@@ -1,15 +1,10 @@
-"""
-Some methods which make the VOC dataset easier to explore
-"""
-
+import torch
 import cv2
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import random
-import copy
-
+import numpy as np
+import itertools
 from pathlib import Path
 import xml.etree.ElementTree as ET
+import copy
 
 
 def load_image(image_path):
@@ -50,65 +45,6 @@ def xml_to_dict(file_path, image_folder_path=Path('VOC2007/JPEGImages')):
                                                    int(bounding_box.find('ymax').text)]}
             object_id += 1
     return xml_dict
-
-
-def plot_image(image, bounding_boxes, labels, ax=None):
-    show_plot = False
-    if not ax:
-        fig, ax = plt.subplots(figsize=(10, 10))
-        show_plot = True
-    ax.imshow(image)
-
-    for bounding_box, label in zip(bounding_boxes, labels):
-        xmin, ymin, xmax, ymax = bounding_box
-        width = xmax - xmin
-        height = ymax - ymin
-        rect = patches.Rectangle((xmin, ymin),
-                                 width, height,
-                                 linewidth=1, edgecolor='xkcd:bright green',
-                                 facecolor='none', label=label)
-        ax.add_patch(rect)
-        ax.text(xmin, ymin, label, color='xkcd:bright green', fontsize=12)
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-
-    if show_plot:
-        plt.show()
-
-
-def show_annotation(annotation):
-    """
-    Given a dictionary of the annotation,
-    plots the corresponding image with the bounding boxes
-    """
-    # first, load up the image
-    image_path = annotation['image_path']
-    image_to_plot = load_image(image_path)
-
-    # then, all the bounding boxes and labels
-    bounding_boxes = []
-    labels = []
-    for anno_id, anno in annotation['objects'].items():
-        bounding_boxes.append(anno['coordinates'])
-        labels.append(anno['name'])
-    plot_image(image_to_plot, bounding_boxes, labels)
-
-    plt.show()
-
-
-def show_random_example(VOC_path=Path('VOC2007'), return_annotation=False):
-    """
-    Given the VOC directory, plot a random example
-    """
-    annotations = VOC_path / 'Annotations'
-    images = VOC_path / 'JPEGImages'
-
-    random_annotation = random.choice([x for x in annotations.iterdir()])
-    print("Showing {}".format(str(random_annotation)))
-    annotation = xml_to_dict(random_annotation, image_folder_path=images)
-    show_annotation(annotation)
-    if return_annotation:
-        return annotation
 
 
 def box_size(bounding_box):
@@ -153,3 +89,111 @@ def denormalize(image, mean=None, std=None):
     if mean and std:
         image = (image * std) + mean
     return image.astype(int)
+
+
+def make_anchors(image_height, image_width, anchor_size):
+    # anchor size is a fraction of the image height and width
+    if isinstance(anchor_size, tuple):
+        x_ratio, y_ratio = anchor_size
+    else:
+        x_ratio = y_ratio = anchor_size
+
+    x_size = image_width * x_ratio
+    y_size = image_height * y_ratio
+    # first, lets define the top left corner of all the anchor boxes:
+    xs = np.arange(0, image_width, x_size)
+    ys = np.arange(0, image_height, y_size)
+    # get all possible coordinates
+    top_right_xy = [list(zip(xs, zip_xy)) for zip_xy in itertools.permutations(xs, len(ys))]
+
+    # and flatten it
+    top_right_xy = [coords for sublist in top_right_xy for coords in sublist]
+
+    # the set ensures uniqueness
+    anchor_boxes = set([tuple((xmin, ymin, xmin + x_size, ymin + y_size)) for xmin, ymin in top_right_xy])
+    return [list(anchor) for anchor in anchor_boxes]
+
+
+def permute_anchors(anchors, zooms=None, ratios=None, image_dims=(224, 224)):
+    """Given a list of anchor boxes, return a list of anchor boxes with the zooms and ratios applies.
+
+    Note that the output is a 3D array, so that each bounding box can be associated with its base bounding box
+    """
+    num_permutations = len(zooms) * len(ratios)
+    output_bbs = []
+    for xmin, ymin, xmax, ymax in anchors:
+        anchor_width = xmax - xmin
+        anchor_height = ymax - ymin
+        center = (xmin + (anchor_width / 2), ymin + (anchor_height / 2))
+        for zoom in zooms:
+            for x_ratio, y_ratio in ratios:
+                # ensure the bounding boxes don't go outside of the image
+                xmin = max(0, center[0] - (zoom * x_ratio * anchor_width / 2))
+                xmax = min(image_dims[0], center[0] + (zoom * x_ratio * anchor_width / 2))
+                ymin = max(0, center[1] - (zoom * y_ratio * anchor_width / 2))
+                ymax = min(image_dims[1], center[1] + (zoom * y_ratio * anchor_width / 2))
+                output_bbs.append([xmin, ymin, xmax, ymax])
+    return np.array(output_bbs), num_permutations
+
+
+def extend_tensor(shape, constant, dtype=torch.float64):
+    if isinstance(constant, torch.Tensor):
+        constant = constant.item()
+    return torch.ones(shape, dtype=dtype) * constant
+
+
+def anchor_to_class(anchor_val, anchor_idx, labels, threshold=0.5, background_index=21):
+    selected_anchors = anchor_val > threshold
+    background = torch.nonzero(1-selected_anchors)[:, 0]
+
+    anchor_classes = labels[anchor_idx]
+    anchor_classes[background] = background_index
+    return anchor_classes
+
+
+def jaccard_to_anchor(jaccard_overlaps):
+    """
+    To find which anchor box is associated to an object,
+    we need to consider
+    - which is the best anchor box for each object
+    - which is the best object for each anchor box
+    """
+    # first, find the best anchor for the bounding box
+    bbox_val, bbox_idx = jaccard_overlaps.max(0)
+    # then, the best bounding box for each anchor
+    anchor_val, anchor_idx = jaccard_overlaps.max(1)
+
+    # next, lets force the best bbox per anchor VALUE (not idx)
+    # to be high for the best anchor
+    anchor_val[bbox_idx] = 1.99
+    for i, o in enumerate(bbox_idx):
+        anchor_idx[o]: i
+    # anchor_idx: best bbox for each anchor (forced to the bbox
+    # for the best anchor for that bbox)
+    # anchor_val: jaccard overlap of that bbox (forced to 2 for the
+    # best anchors for each bbox)
+    return anchor_val, anchor_idx
+
+
+def bbox_to_jaccard(anchors, bbox):
+    """
+    Combines jaccard_index and find_anchor for tensors.
+    """
+    # to begin with, we have to make the two tensors broadcastable
+    anchors = anchors.unsqueeze(1)
+    bbox = bbox.unsqueeze(0)
+
+    axmin, aymin, axmax, aymax = anchors[:, :, 0], anchors[:, :, 1], anchors[:, :, 2], anchors[:, :, 3]
+    bxmin, bymin, bxmax, bymax = bbox[:, :, 0], bbox[:, :, 1], bbox[:, :, 2], bbox[:, :, 3]
+
+    b_area = ((bxmax - bxmin) * (bymax - bymin)).unsqueeze(0)
+    a_area = ((axmax - axmin) * (aymax - aymin)).unsqueeze(1)
+    a_plus_b = (b_area + a_area)[:, 0, :]
+
+    overlap_width = torch.clamp(torch.min(axmax, bxmax) - torch.max(bxmin, axmin), 0)
+    overlap_height = torch.clamp(torch.min(aymax, bymax) - torch.max(aymin, bymin), 0)
+    overlaps = overlap_height * overlap_width
+
+    union = a_plus_b - overlaps
+    jaccard = overlaps / union
+    return jaccard

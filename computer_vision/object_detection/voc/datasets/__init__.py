@@ -1,1 +1,1 @@
-from voc.datasets.datasets import VOCDataset, MultiImageDataset, SingleImageDataset
+from voc.datasets.datasets import VOCDataset, MultiImageDataset, SingleImageDataset, collate_im_bb_lab
