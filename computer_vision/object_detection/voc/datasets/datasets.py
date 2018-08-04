@@ -245,7 +245,7 @@ class MultiImageDataset(VOCDataset):
             image, bb = self._transform_image(image, bb)
         image = self._normalize(image)
         return torch.tensor(image, dtype=torch.float, device=self.device), \
-               torch.tensor(bb, dtype=torch.double, device=self.device), \
+               torch.tensor(bb, dtype=torch.float, device=self.device), \
                torch.tensor(self.labels[index], dtype=torch.long, device=self.device)
 
 

@@ -2,6 +2,8 @@ import torch
 from torch import nn
 from torchvision.models import resnet34
 
+from .utils import bbox_to_jaccard, jaccard_to_anchor, anchor_to_class, activations_to_pixels
+
 
 class SODNet(nn.Module):
     """
@@ -81,14 +83,27 @@ class SSDNet(nn.Module):
         self.pretrained = nn.Sequential(*list(resnet.children())[:-2])
 
         # the last output of the pretrained net has shape (7, 7, 512)
-        self.first_conv = nn.Conv2d(512, 256, 3, stride=2, padding=1)
-        self.conv = nn.Conv2d(256, 256, 3, stride=2, padding=1)
-        self.conv_out_bb = nn.Conv2d(256, num_permutations * 4, 3, stride=1, padding=1)
-        self.conv_out_lab = nn.Conv2d(256, num_permutations * num_classes, 3, stride=1, padding=1)
+        self.conv_4 = nn.Conv2d(512, 256, 3, stride=2, padding=1)
+        self.conv_2 = nn.Conv2d(256, 256, 3, stride=2, padding=1)
+        self.conv_1 = nn.Conv2d(256, 256, 3, stride=2, padding=1)
+
+        self.conv_out_bb_4 = nn.Conv2d(256, num_permutations * 4, 3, stride=1, padding=1)
+        self.conv_out_lab_4 = nn.Conv2d(256, num_permutations * num_classes, 3, stride=1, padding=1)
+        self.conv_out_bb_2 = nn.Conv2d(256, num_permutations * 4, 3, stride=1, padding=1)
+        self.conv_out_lab_2 = nn.Conv2d(256, num_permutations * num_classes, 3, stride=1, padding=1)
+        self.conv_out_bb_1 = nn.Conv2d(256, num_permutations * 4, 3, stride=1, padding=1)
+        self.conv_out_lab_1 = nn.Conv2d(256, num_permutations * num_classes, 3, stride=1, padding=1)
         # batchnorm stats copied from what is happening in resnet
-        self.batchnorm = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1,
-                                         affine=True, track_running_stats=True)
-        self.dropout = nn.Dropout()
+        self.batchnorm_4 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1,
+                                          affine=True, track_running_stats=True)
+        self.batchnorm_2 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1,
+                                          affine=True, track_running_stats=True)
+        self.batchnorm_1 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1,
+                                          affine=True, track_running_stats=True)
+        self.dropout_4 = nn.Dropout()
+        self.dropout_2 = nn.Dropout()
+        self.dropout_1 = nn.Dropout()
+
         self.num_permutations = num_permutations
 
     @staticmethod
@@ -100,12 +115,12 @@ class SSDNet(nn.Module):
     def forward(self, x):
         x = self.pretrained(x)
         # first convolutional layer
-        x = self.dropout(self.batchnorm(self.first_conv(x)))
-        bb_4, lab_4 = self.conv_out_bb(x), self.conv_out_lab(x)
-        x = self.dropout(self.batchnorm(self.conv(x)))
-        bb_2, lab_2 = self.conv_out_bb(x), self.conv_out_lab(x)
-        x = self.dropout(self.batchnorm(self.conv(x)))
-        bb_1, lab_1 = self.conv_out_bb(x), self.conv_out_lab(x)
+        x = self.dropout_4(self.batchnorm_4(self.conv_4(x)))
+        bb_4, lab_4 = self.conv_out_bb_4(x), self.conv_out_lab_4(x)
+        x = self.dropout_2(self.batchnorm_2(self.conv_2(x)))
+        bb_2, lab_2 = self.conv_out_bb_2(x), self.conv_out_lab_2(x)
+        x = self.dropout_1(self.batchnorm_1(self.conv_1(x)))
+        bb_1, lab_1 = self.conv_out_bb_1(x), self.conv_out_lab_1(x)
 
         # flatten and concatenate the outputs
         bb = torch.cat([self.flatten(bb_4),
@@ -116,3 +131,46 @@ class SSDNet(nn.Module):
                             self.flatten(lab_1)], 1)
 
         return bb, labels
+
+
+class SSDLoss(nn.Module):
+
+    def __init__(self, anchors, threshold, num_classes, background_index=20, device=torch.device("cpu")):
+        super().__init__()
+        self.anchors = anchors
+        self.threshold = threshold
+        self.num_classes = num_classes
+        self.background_index = background_index
+        self.device = device
+
+    def forward(self, target_bb_batch, target_label_batch, pred_bb_batch, pred_label_batch):
+        # iterate through each example in the batch
+        for target_bb, target_label, pred_bb, pred_label in zip(target_bb_batch, target_label_batch,
+                                                                pred_bb_batch, pred_label_batch):
+            jaccard = bbox_to_jaccard(self.anchors, target_bb)
+            anchor_val, anchor_idx = jaccard_to_anchor(jaccard)
+
+            anchor_classes, object_indices, objects = anchor_to_class(anchor_val,
+                                                                      anchor_idx, target_label,
+                                                                      threshold=self.threshold,
+                                                                      background_index=self.background_index)
+
+            # turn the anchor classes into targets, and lop off the end so that we aren't training
+            # the model to recognize background
+            target_label_one_hot = torch.eye(self.num_classes + 1, device=self.device)[anchor_classes][:, :-1]
+            pred_label = pred_label.view(int(pred_label.shape[0] / 20), 20)
+            label_loss = nn.functional.binary_cross_entropy_with_logits(pred_label,
+                                                                        target_label_one_hot)
+
+            # next, the bounding box loss
+            # first, lets get the bounding box predictions we care about
+            pred_bb = pred_bb.view(int(pred_bb.shape[0] / 4), 4)[object_indices]
+            # and the actual anchor coordinates for the anchors we care about
+            relevant_anchors = self.anchors[object_indices]
+            # and finally, the bounding boxes
+            target_bb = target_bb[objects]
+            pred_bb_pixels = activations_to_pixels(pred_bb, relevant_anchors)
+
+            # Finally, its just L1 loss
+            bb_loss = torch.nn.functional.l1_loss(pred_bb_pixels, target_bb)
+            return bb_loss + label_loss

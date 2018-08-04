@@ -136,19 +136,22 @@ def permute_anchors(anchors, zooms=None, ratios=None, image_dims=(224, 224)):
     return np.array(output_bbs), num_permutations
 
 
-def extend_tensor(shape, constant, dtype=torch.float64):
-    if isinstance(constant, torch.Tensor):
-        constant = constant.item()
-    return torch.ones(shape, dtype=dtype) * constant
-
-
 def anchor_to_class(anchor_val, anchor_idx, labels, threshold=0.5, background_index=21):
+    """
+    Returns:
+        anchor_classes: maps all anchors to their class labels (with background_label
+        indicating background
+        objects: returns the anchor indices of the anchors containing an object
+        anchor_idx[objects]: returns the bbox indices of the anchors returned in objects
+    """
     selected_anchors = anchor_val > threshold
+    objects = torch.nonzero(selected_anchors)[:, 0]
     background = torch.nonzero(1-selected_anchors)[:, 0]
 
     anchor_classes = labels[anchor_idx]
     anchor_classes[background] = background_index
-    return anchor_classes
+
+    return anchor_classes, objects, anchor_idx[objects]
 
 
 def jaccard_to_anchor(jaccard_overlaps):
@@ -167,6 +170,8 @@ def jaccard_to_anchor(jaccard_overlaps):
     # to be high for the best anchor
     anchor_val[bbox_idx] = 1.99
     for i, o in enumerate(bbox_idx):
+        # and equally, force the best anchor for each bbox
+        # to point to the bbox
         anchor_idx[o]: i
     # anchor_idx: best bbox for each anchor (forced to the bbox
     # for the best anchor for that bbox)
@@ -190,10 +195,79 @@ def bbox_to_jaccard(anchors, bbox):
     a_area = ((axmax - axmin) * (aymax - aymin)).unsqueeze(1)
     a_plus_b = (b_area + a_area)[:, 0, :]
 
-    overlap_width = torch.clamp(torch.min(axmax, bxmax) - torch.max(bxmin, axmin), 0)
-    overlap_height = torch.clamp(torch.min(aymax, bymax) - torch.max(aymin, bymin), 0)
+    overlap_width = torch.clamp(torch.min(axmax, bxmax) - torch.max(bxmin, axmin), min=0)
+    overlap_height = torch.clamp(torch.min(aymax, bymax) - torch.max(aymin, bymin), min=0)
     overlaps = overlap_height * overlap_width
 
     union = a_plus_b - overlaps
     jaccard = overlaps / union
     return jaccard
+
+
+def activations_to_pixels(bb, anchors, leniency_factor=2):
+    bb = torch.tanh(bb).view(bb.shape[1], bb.shape[0])
+    # get some info about the anchors
+    anchor_xmin, anchor_ymin, anchor_xmax, anchor_ymax = anchors.view(anchors.shape[1], anchors.shape[0])
+    width = anchor_xmax - anchor_xmin
+    height = anchor_ymax - anchor_ymin
+    x_center, y_center = (anchor_xmin + (width / 2)), (anchor_ymin + (height / 2))
+
+    # give some leniency to where the activations can be
+    adjusted_height = (height * leniency_factor)
+    adjusted_width = (width * leniency_factor)
+    # get xminmax, yminmax, clamping at the image size
+    xmm = torch.clamp(x_center + ((bb[[0, 2]] - 0.5) * (adjusted_width / 2)), min=0, max=224)
+    ymm = torch.clamp(y_center + ((bb[[1, 3]] - 0.5) * (adjusted_height / 2)), min=0, max=224)
+
+    return torch.stack((xmm[0], ymm[0], xmm[1], ymm[1]), 1)
+
+
+def nms(boxes, scores, overlap=0.5, top_k=100):
+    keep = scores.new(scores.size(0)).zero_().long()
+    if boxes.numel() == 0: return keep
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+    area = torch.mul(x2 - x1, y2 - y1)
+    v, idx = scores.sort(0)  # sort in ascending order
+    idx = idx[-top_k:]  # indices of the top-k largest vals
+    xx1 = boxes.new()
+    yy1 = boxes.new()
+    xx2 = boxes.new()
+    yy2 = boxes.new()
+    w = boxes.new()
+    h = boxes.new()
+
+    count = 0
+    while idx.numel() > 0:
+        i = idx[-1]  # index of current largest val
+        keep[count] = i
+        count += 1
+        if idx.size(0) == 1: break
+        idx = idx[:-1]  # remove kept element from view
+        # load bboxes of next highest vals
+        torch.index_select(x1, 0, idx, out=xx1)
+        torch.index_select(y1, 0, idx, out=yy1)
+        torch.index_select(x2, 0, idx, out=xx2)
+        torch.index_select(y2, 0, idx, out=yy2)
+        # store element-wise max with next highest score
+        xx1 = torch.clamp(xx1, min=x1[i])
+        yy1 = torch.clamp(yy1, min=y1[i])
+        xx2 = torch.clamp(xx2, max=x2[i])
+        yy2 = torch.clamp(yy2, max=y2[i])
+        w.resize_as_(xx2)
+        h.resize_as_(yy2)
+        w = xx2 - xx1
+        h = yy2 - yy1
+        # check sizes of xx1 and xx2.. after each iteration
+        w = torch.clamp(w, min=0.0)
+        h = torch.clamp(h, min=0.0)
+        inter = w*h
+        # IoU = i / (area(a) + area(b) - i)
+        rem_areas = torch.index_select(area, 0, idx)  # load remaining areas)
+        union = (rem_areas - inter) + area[i]
+        IoU = inter/union  # store result in iou
+        # keep only elements with an IoU <= overlap
+        idx = idx[IoU.le(overlap)]
+    return keep, count
