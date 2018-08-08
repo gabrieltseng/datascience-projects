@@ -9,7 +9,7 @@ import random
 
 
 from pathlib import Path
-from .utils import load_image, xml_to_dict, activations_to_pixels, nms
+from .utils import load_image, xml_to_dict, activations_to_ratios, nms
 
 
 def plot_image(image, bounding_boxes, labels, ax=None):
@@ -71,17 +71,19 @@ def show_random_example(VOC_path=Path('VOC2007'), return_annotation=False):
         return annotation
 
 
-def plot_multiobject_results(im, bb, lab, anchors, label2class, threshold=0.4, ax=None):
+def plot_multiobject_results(im, bb, lab, anchors, label2class, use_nms=True,
+                             threshold=0.25, ax=None):
     """Plot the results of a prediction
     """
     if not ax: fig, ax = plt.subplots(figsize=(10, 10))
     class2label = {int(im_class): label for label, im_class in label2class.items()}
 
     # first, find the bb coordinates given the anchors
-    coords = activations_to_pixels(bb.view(int(bb.shape[0] / 4), 4), anchors)
+    coords = activations_to_ratios(bb.view(-1, 4), anchors) * 224
 
     # next, find the objects for which the item was more than threshold confident
-    lab = torch.nn.functional.sigmoid(lab.view(int(lab.shape[0] / 20), 20))
+    num_classes = len(label2class)
+    lab = torch.nn.functional.sigmoid(lab.view(-1, (num_classes + 1)))[:, :-1]
     selected_anchors = torch.nonzero(torch.sum(lab > threshold, dim=1))
     if selected_anchors.shape[0] == 0:
         ax.imshow(im)
@@ -91,11 +93,18 @@ def plot_multiobject_results(im, bb, lab, anchors, label2class, threshold=0.4, a
         selected_label_values, selected_label_idxs = torch.max(selected_labels, dim=1)
         # now, we can use nms to find the boxes we are going to keep
         selected_coords = coords[selected_anchors]
-        output_boxes, count = nms(selected_coords, selected_label_values)
-        output_boxes = output_boxes[:count]
+        if use_nms:
+            output_boxes, count = nms(selected_coords, selected_label_values)
+            output_boxes = output_boxes[:count]
 
-        nms_selected_boxes = selected_coords[output_boxes].detach().cpu().numpy()
-        nms_selected_labels = selected_label_idxs[output_boxes]
-        label_names = [class2label[idx.item()] for idx in nms_selected_labels]
+            nms_selected_boxes = selected_coords[output_boxes].detach().cpu().numpy()
+            nms_selected_labels = selected_label_idxs[output_boxes]
+            nms_selected_label_scores = selected_label_values[output_boxes]
+            label_names = ['{}: {}'.format(class2label[idx.item()], round(score.item(), 2))
+                           for idx, score in zip(nms_selected_labels, nms_selected_label_scores)]
 
-        voc.explore.plot_image(im, nms_selected_boxes, label_names, ax=ax)
+            plot_image(im, nms_selected_boxes, label_names, ax=ax)
+        else:
+            label_names = ['{}: {}'.format(class2label[idx.item()], round(score.item(), 2))
+                           for idx, score in zip(selected_label_idxs, selected_label_values)]
+            plot_image(im, selected_coords.detach().cpu().numpy(), label_names, ax=ax)

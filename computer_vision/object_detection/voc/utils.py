@@ -136,7 +136,7 @@ def permute_anchors(anchors, zooms=None, ratios=None, image_dims=(224, 224)):
     return np.array(output_bbs), num_permutations
 
 
-def anchor_to_class(anchor_val, anchor_idx, labels, threshold=0.5, background_index=21):
+def anchor_to_class(anchor_val, anchor_idx, labels, threshold=0.5, background_index=20):
     """
     Returns:
         anchor_classes: maps all anchors to their class labels (with background_label
@@ -147,7 +147,6 @@ def anchor_to_class(anchor_val, anchor_idx, labels, threshold=0.5, background_in
     selected_anchors = anchor_val > threshold
     objects = torch.nonzero(selected_anchors)[:, 0]
     background = torch.nonzero(1-selected_anchors)[:, 0]
-
     anchor_classes = labels[anchor_idx]
     anchor_classes[background] = background_index
 
@@ -204,22 +203,30 @@ def bbox_to_jaccard(anchors, bbox):
     return jaccard
 
 
-def activations_to_pixels(bb, anchors, leniency_factor=2):
-    bb = torch.tanh(bb).view(bb.shape[1], bb.shape[0])
+def activations_to_ratios(bb, anchors):
+    """
+    We will define the activations from the network as factors, which can be used
+    to slightly shift the bounding boxes
+    """
+    bb = torch.tanh(bb)
     # get some info about the anchors
-    anchor_xmin, anchor_ymin, anchor_xmax, anchor_ymax = anchors.view(anchors.shape[1], anchors.shape[0])
-    width = anchor_xmax - anchor_xmin
-    height = anchor_ymax - anchor_ymin
-    x_center, y_center = (anchor_xmin + (width / 2)), (anchor_ymin + (height / 2))
+    width = anchors[:, 2] - anchors[:, 0]
+    height = anchors[:, 3] - anchors[:, 1]
+    grid_sizes = width * height
+    x_center, y_center = (anchors[:, 0] + (width / 2)), (anchors[:, 1] + (height / 2))
 
-    # give some leniency to where the activations can be
-    adjusted_height = (height * leniency_factor)
-    adjusted_width = (width * leniency_factor)
-    # get xminmax, yminmax, clamping at the image size
-    xmm = torch.clamp(x_center + ((bb[[0, 2]] - 0.5) * (adjusted_width / 2)), min=0, max=224)
-    ymm = torch.clamp(y_center + ((bb[[1, 3]] - 0.5) * (adjusted_height / 2)), min=0, max=224)
+    # bb[:, 2:] will be used to determine shifts in the height and widths of the bounding box
+    activated_width = width * (bb[:, 0] / 2 + 1)
+    activated_height = height * (bb[:, 1] / 2 + 1)
+    # bb[:, :2] will be used to determine shifts in the center of the bounding box
+    activated_x_center = x_center + (bb[:, 2] / 2 * grid_sizes)
+    activated_y_center = y_center + (bb[:, 3] / 2 * grid_sizes)
 
-    return torch.stack((xmm[0], ymm[0], xmm[1], ymm[1]), 1)
+    xmin = activated_x_center - (activated_width / 2)
+    ymin = activated_y_center - (activated_height / 2)
+    xmax = activated_x_center + (activated_width / 2)
+    ymax = activated_y_center + (activated_height / 2)
+    return torch.stack((xmin, ymin, xmax, ymax), 1)
 
 
 def nms(boxes, scores, overlap=0.5, top_k=100):
