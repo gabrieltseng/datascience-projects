@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torchvision.models import resnet34
 
-from .utils import bbox_to_jaccard, jaccard_to_anchor, anchor_to_class, activations_to_ratios
+from .utils import activations_to_ratios
 
 
 class SODNet(nn.Module):
@@ -112,9 +112,9 @@ class SSDNet(nn.Module):
 
     @staticmethod
     def flatten(tensor):
-        channels, depth, width, height = tensor.shape
+        batches, depth, width, height = tensor.shape
         tensor = tensor.permute(0, 2, 3, 1).contiguous()
-        return tensor.view(channels, (depth * width * height))
+        return tensor.view(batches, (depth * width * height))
 
     def forward(self, x):
         x = self.pretrained(x)
@@ -147,18 +147,85 @@ class SSDLoss(nn.Module):
         self.background_index = background_index
         self.device = device
 
+    @staticmethod
+    def bbox_to_jaccard(anchors, bbox):
+        """
+        Combines jaccard_index and find_anchor for tensors.
+        """
+        # to begin with, we have to make the two tensors broadcastable
+        anchors = anchors.unsqueeze(1)
+        bbox = bbox.unsqueeze(0)
+
+        axmin, aymin, axmax, aymax = anchors[:, :, 0], anchors[:, :, 1], anchors[:, :, 2], anchors[:, :, 3]
+        bxmin, bymin, bxmax, bymax = bbox[:, :, 0], bbox[:, :, 1], bbox[:, :, 2], bbox[:, :, 3]
+
+        b_area = ((bxmax - bxmin) * (bymax - bymin)).unsqueeze(0)
+        a_area = ((axmax - axmin) * (aymax - aymin)).unsqueeze(1)
+        a_plus_b = (b_area + a_area)[:, 0, :]
+
+        overlap_width = torch.clamp(torch.min(axmax, bxmax) - torch.max(bxmin, axmin), min=0)
+        overlap_height = torch.clamp(torch.min(aymax, bymax) - torch.max(aymin, bymin), min=0)
+        overlaps = overlap_height * overlap_width
+
+        union = a_plus_b - overlaps
+        jaccard = overlaps / union
+        return jaccard
+
+    @staticmethod
+    def jaccard_to_anchor(jaccard_overlaps):
+        """
+        To find which anchor box is associated to an object,
+        we need to consider
+        - which is the best anchor box for each object
+        - which is the best object for each anchor box
+        """
+        # first, find the best anchor for the bounding box
+        bbox_val, bbox_idx = jaccard_overlaps.max(0)
+        # then, the best bounding box for each anchor
+        anchor_val, anchor_idx = jaccard_overlaps.max(1)
+
+        # next, lets force the best bbox per anchor VALUE (not idx)
+        # to be high for the best anchor
+        anchor_val[bbox_idx] = 1.99
+        for i, o in enumerate(bbox_idx):
+            # and equally, force the best anchor for each bbox
+            # to point to the bbox
+            anchor_idx[o]: i
+        # anchor_idx: best bbox for each anchor (forced to the bbox
+        # for the best anchor for that bbox)
+        # anchor_val: jaccard overlap of that bbox (forced to 2 for the
+        # best anchors for each bbox)
+        return anchor_val, anchor_idx
+
+    @staticmethod
+    def anchor_to_class(anchor_val, anchor_idx, labels, threshold=0.5, background_index=20):
+        """
+        Returns:
+            anchor_classes: maps all anchors to their class labels (with background_label
+            indicating background
+            objects: returns the anchor indices of the anchors containing an object
+            anchor_idx[objects]: returns the bbox indices of the anchors returned in objects
+        """
+        selected_anchors = anchor_val > threshold
+        objects = torch.nonzero(selected_anchors)[:, 0]
+        background = torch.nonzero(1 - selected_anchors)[:, 0]
+        anchor_classes = labels[anchor_idx]
+        anchor_classes[background] = background_index
+
+        return anchor_classes, objects, anchor_idx[objects]
+
     def forward(self, target_bb_batch, target_label_batch, pred_bb_batch, pred_label_batch):
         # iterate through each example in the batch
         total_bb_loss = 0
         total_label_loss = 0
         for target_bb, target_label, pred_bb, pred_label in zip(target_bb_batch, target_label_batch,
                                                                 pred_bb_batch, pred_label_batch):
-            jaccard = bbox_to_jaccard(self.anchors, target_bb)
-            anchor_val, anchor_idx = jaccard_to_anchor(jaccard)
-            anchor_classes, object_indices, objects = anchor_to_class(anchor_val,
-                                                                      anchor_idx, target_label,
-                                                                      threshold=self.threshold,
-                                                                      background_index=self.background_index)
+            jaccard = self.bbox_to_jaccard(self.anchors, target_bb)
+            anchor_val, anchor_idx = self.jaccard_to_anchor(jaccard)
+            anchor_classes, object_indices, objects = self.anchor_to_class(anchor_val,
+                                                                           anchor_idx, target_label,
+                                                                           threshold=self.threshold,
+                                                                           background_index=self.background_index)
 
             # turn the anchor classes into targets, and lop off the end so that we aren't training
             # the model to recognize background
