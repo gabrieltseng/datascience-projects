@@ -5,7 +5,7 @@ In this repository, I'll keep the code I write as I learn about Data Science.
 I write about what I am learning here: 
 https://medium.com/@gabrieltseng/
 
-For all notebooks which require a GPU (anything which includes Keras or Tensorflow), I use an [AWS P2 instance](https://aws.amazon.com/ec2/instance-types/p2/). 
+For all notebooks which require a GPU I use an [AWS P2 instance](https://aws.amazon.com/ec2/instance-types/p2/). 
 
 ## 
 I approached the projects in the following order (latest to earliest):
@@ -13,6 +13,7 @@ I approached the projects in the following order (latest to earliest):
 <details>
 <summary><strong><em>Table of Contents</em></strong></summary>
 
+* [Object Detection](#ObjectDetection)
 * [Stanford Databases Course](#StanfordDatabases)
 * [ThinkBayes (Bayesian Statistics)](#ThinkBayes)
 * [Twitter Disasters (NLP)](#Twitter)
@@ -23,6 +24,11 @@ I approached the projects in the following order (latest to earliest):
 * [Image Recognition](#ImageRecognition)
 
 </details>
+
+### [Object Detection](computer_vision/object_detection)<a name="ObjectDetection"></a>
+
+I build a single and multi image object detector, which can label and locate objects in an image. Both models are trained on
+the [Pascal VOC 2007 challenge dataset](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/index.html).
 
 ### [Stanford Databases](databases/stanford_databases)<a name="StanfordDatabases"></a>
 
