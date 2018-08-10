@@ -139,21 +139,20 @@ def permute_anchors(anchors, zooms=None, ratios=None, image_dims=(224, 224)):
 def activations_to_ratios(bb, anchors):
     """
     We will define the activations from the network as factors, which can be used
-    to slightly shift the bounding boxes
+    to slightly shift the bounding boxes. This is motivated by the SSD paper
     """
     bb = torch.tanh(bb)
     # get some info about the anchors
     width = anchors[:, 2] - anchors[:, 0]
     height = anchors[:, 3] - anchors[:, 1]
-    grid_sizes = width * height
     x_center, y_center = (anchors[:, 0] + (width / 2)), (anchors[:, 1] + (height / 2))
 
     # bb[:, 2:] will be used to determine shifts in the height and widths of the bounding box
-    activated_width = width * (bb[:, 0] / 2 + 1)
-    activated_height = height * (bb[:, 1] / 2 + 1)
+    activated_width = width * torch.exp(bb[:, 0])
+    activated_height = height * torch.exp(bb[:, 1])
     # bb[:, :2] will be used to determine shifts in the center of the bounding box
-    activated_x_center = x_center + (bb[:, 2] / 2 * grid_sizes)
-    activated_y_center = y_center + (bb[:, 3] / 2 * grid_sizes)
+    activated_x_center = x_center + (bb[:, 2] * width)
+    activated_y_center = y_center + (bb[:, 3] * height)
 
     xmin = activated_x_center - (activated_width / 2)
     ymin = activated_y_center - (activated_height / 2)

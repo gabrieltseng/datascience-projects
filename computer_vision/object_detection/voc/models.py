@@ -139,13 +139,15 @@ class SSDNet(nn.Module):
 
 class SSDLoss(nn.Module):
 
-    def __init__(self, anchors, threshold, num_classes, background_index=20, device=torch.device("cpu")):
+    def __init__(self, anchors, threshold, num_classes, background_index=20, device=torch.device("cpu"),
+                 image_dimensions=224):
         super().__init__()
         self.anchors = anchors
         self.threshold = threshold
         self.num_classes = num_classes
         self.background_index = background_index
         self.device = device
+        self.image_dimensions=image_dimensions
 
     @staticmethod
     def bbox_to_jaccard(anchors, bbox):
@@ -239,22 +241,21 @@ class SSDLoss(nn.Module):
             focal_weight = alpha_t * (1 - p_t).pow(gamma)
             label_loss = nn.functional.binary_cross_entropy_with_logits(pred_label,
                                                                         target_label_one_hot,
-                                                                        size_average=False,
+                                                                        size_average=None,
                                                                         weight=focal_weight) / self.num_classes
-
             # next, the bounding box loss
             # first, lets turn the bounding box from pixel values into ratios
-            target_bb = target_bb.view(-1, 4) / 224
+            target_bb = target_bb.view(-1, 4) / self.image_dimensions
             # first, lets get the bounding box predictions we care about
             pred_bb = pred_bb.view(-1, 4)[object_indices]
 
             # and the actual anchor coordinates for the anchors we care about
-            relevant_anchors = self.anchors[object_indices] / 224
+            relevant_anchors = self.anchors[object_indices] / self.image_dimensions
             # and finally, the bounding boxes
             target_bb = target_bb[objects]
             pred_bb_pixels = activations_to_ratios(pred_bb, relevant_anchors)
             # Finally, its just L1 loss
-            bb_loss = torch.nn.functional.l1_loss(pred_bb_pixels, target_bb)
+            bb_loss = torch.nn.functional.smooth_l1_loss(pred_bb_pixels, target_bb)
             total_bb_loss += bb_loss
             total_label_loss += label_loss
         return total_bb_loss, total_label_loss
