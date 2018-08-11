@@ -241,8 +241,7 @@ class SSDLoss(nn.Module):
             focal_weight = alpha_t * (1 - p_t).pow(gamma)
             label_loss = nn.functional.binary_cross_entropy_with_logits(pred_label,
                                                                         target_label_one_hot,
-                                                                        size_average=None,
-                                                                        weight=focal_weight) / self.num_classes
+                                                                        weight=focal_weight)
             # next, the bounding box loss
             # first, lets turn the bounding box from pixel values into ratios
             target_bb = target_bb.view(-1, 4) / self.image_dimensions

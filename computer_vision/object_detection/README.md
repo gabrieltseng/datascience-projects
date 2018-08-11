@@ -81,7 +81,9 @@ The output of the bounding boxes will not directly map to pixels. Instead, they 
 are associated with should be stretched and moved to capture the image. For this reason, a tanh (rather than sigmoid) activation
 will be used.
 
-This model can be accessed at `voc.models.SSDNet`
+This model can be accessed at `voc.models.SSDNet`.
+
+The layers which were not pretrained (not taken from Resnet 34) were initialized with Xavier initialization.
 
 #### 2.3. Training
 
@@ -93,10 +95,12 @@ make sense to force the output to sum to 1, so a logits activation is used inste
 of the label vector (i.e. the element representing background) is ignored, so the model is trained to recognize an absence of object
 (as opposed to explicitly recognizing background).
 
-Note that a loss function which associated each anchor box to an object using jaccard loss can be found at `voc.models.SSDLOss`.
+Note that a loss function which associated each anchor box to an object using jaccard loss can be found at `voc.models.SSDLOss`. In
+addition, a weight was introduced (`alpha` in the SSD paper) to make the magnitudes of the bounding box and label loss comparable, ensuring
+both were trained.
 
 After training until early stopping (also using cyclical learning rate with stepsize = 0.5 epochs to allow for early stopping),
-and with non-maximum suppression (nms), the model yielded the following (cherrypicked) results (for a look at 10 random results,
-with and without NMS, see [the multi object notebook](2-multi-object-detection.ipynb)):
+and with non-maximum suppression (NMS), the model yielded the following (slightly cherrypicked) results (for a look at the 10 random results
+from which these 3 were taken, with and without NMS, see [the multi object notebook](2-multi-object-detection.ipynb)):
 
 <img src="diagrams/SSD_output.png" alt="ssd output" height="300px"/>
