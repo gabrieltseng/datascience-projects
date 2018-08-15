@@ -21,8 +21,8 @@ class WikiTextTokenizer(object):
 
         self.filepaths = filepaths
         self.articles = self.read_articles()
-        self.processes=processes
-        self.parallelism=parallelism
+        self.processes = processes
+        self.parallelism = parallelism
 
         self.num_chunks = max(int(len(self.articles) / chunksize), 1)
 
@@ -52,7 +52,7 @@ class WikiTextTokenizer(object):
         for list_num, sublist in enumerate(np.array_split(self.articles, self.num_chunks)):
             tokenized_chunk = self.tokenize_chunk(sublist)
             tokenized_wikitext.extend(tokenized_chunk)
-            print('Done {}/{} chunks'.format(list_num, self.num_chunks))
+            print('Done {}/{} chunks'.format(list_num + 1, self.num_chunks))
 
         return tokenized_wikitext
 
