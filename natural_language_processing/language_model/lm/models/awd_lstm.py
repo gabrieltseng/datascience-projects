@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import math
 
 
 class WDLSTM(nn.Module):
@@ -10,16 +11,43 @@ class WDLSTM(nn.Module):
 
     def __init__(self, dropout, input_size, hidden_size):
         super().__init__()
-
         # first, an LSTM. num_layers=1 for the reduced hidden_size
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers=1)
+        self.lstm.flatten_parameters = self.fix_weird_pytorch_error
+
         self.dropout = dropout
+
+        # first, initialize the weights
+        self.init_weights(hidden_size)
 
         # set raw weights. We need to set them as new parameters
         # so that the LSTM module still learns
         raw_weights = self.lstm.weight_hh_l0
         del self.lstm._parameters['weight_hh_l0']
         self.lstm.register_parameter('raw_weight_hh_l0', raw_weights)
+
+    def fix_weird_pytorch_error(*args, **kwargs):
+        # handling weird pytorch error
+        return
+
+    def init_weights(self, hidden_size):
+        # first, initialize all lstm weights
+        min, max = -1/math.sqrt(hidden_size), 1/math.sqrt(hidden_size)
+        for parameter in self.lstm.parameters():
+            nn.init.uniform_(parameter, a=min, b=max)
+
+        # set the forget gate biases to 1, to prevent them tending to 0.
+        # The forget gate biases are stored in the 1/4 to 1/2 elements of bias_ih_l0
+        # and bias_hh_l0
+        # http://proceedings.mlr.press/v37/jozefowicz15.pdf
+
+        ih_bias_size = self.lstm.bias_ih_l0.size(0)
+        ih_start, ih_end = ih_bias_size//4, ih_bias_size//2
+        self.lstm.bias_ih_l0.data[ih_start:ih_end].fill_(1)
+
+        hh_bias_size = self.lstm.bias_hh_l0.size(0)
+        hh_start, hh_end = hh_bias_size // 4, hh_bias_size // 2
+        self.lstm.bias_hh_l0.data[hh_start:hh_end].fill_(1)
 
     def forward(self, x, h0=None):
 
@@ -46,32 +74,68 @@ class VDEmbedding(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=padding_idx)
         self.dropout = dropout
 
-        # same as above; set the raw weights so that the embeddings can still be learned
+        # initialize the weights
+        self.init_weights()
+
+        # same as for the WDLSTM; set the raw weights so that the embeddings can still be learned
         raw_weights = self.embedding.weight
         del self.embedding._parameters['weight']
         self.embedding.register_parameter('raw_weight', raw_weights)
 
         self.vocab_size = vocab_size
 
+    def init_weights(self):
+        # embedding weights are uniformly initialized between -0.1 and 0.1
+        nn.init.uniform_(self.embedding.weight, a=-0.1, b=0.1)
+
     def forward(self, x):
         raw_weights = self.embedding.raw_weight
         mask = nn.functional.dropout(torch.ones(self.vocab_size),
                                      p=self.dropout, training=self.training).unsqueeze(1)
+        # in case we're on a GPU
+        if raw_weights.is_cuda: mask = mask.cuda()
 
         masked_weights = mask * raw_weights
-        if raw_weights.is_cuda: masked_weights = masked_weights.cuda()
 
         self.embedding.register_parameter('weight', nn.Parameter(masked_weights))
 
         return self.embedding(x)
 
 
+class ARTAR(nn.Module):
+    """
+    Activation Regularization and Temporal Activation Regularization
+
+    Arguments:
+        alpha: scaling coefficient for the AR regularization
+            (default: 2)
+        beta: scaling coefficient for the TAR regularization
+            (default: 1)
+    Defaults taken from the awd_lstm paper
+    """
+    def __init__(self, alpha=2, beta=1):
+        super().__init__()
+
+        self.alpha = alpha
+        self.beta = beta
+
+    def forward(self, hidden):
+        ar = torch.norm(hidden)
+
+        diff = hidden[:, -1, :] - hidden[:, 1:, :]
+        tar = torch.norm(diff)
+
+        return (self.alpha * ar) + (self.beta * tar)
+
+
 class RecLM(nn.Module):
     """
     Recurrent Language Model
+
+    Default values taken from the awd_lstm paper, except for vocab size
     """
-    def __init__(self, embedding_dropout, weight_dropout, embedding_dim, hidden_size,
-                 num_layers, vocab_size=60002, padding_idx=0):
+    def __init__(self, embedding_dropout=0.4, weight_dropout=0.5, embedding_dim=400, hidden_size=1150,
+                 num_layers=3, vocab_size=60002, padding_idx=0):
         super().__init__()
 
         # first, the embedding layer with vocabulary-specific dropout
@@ -102,13 +166,13 @@ class RecLM(nn.Module):
             x, h = getattr(self, 'wdrnn_{}'.format(layer, hidden[layer]))(x)
 
             if layer == (self.num_layers - 1):
-                final_rnn_output = x
                 # no need for the cell state here
                 final_rnn_hidden = h[0]
 
             new_hidden.append(h)
+        # we only want the last output to be decoded
+        final_x = x[:, -1, :].squeeze(1)
+        output = self.decoder(final_x)
 
-        output = self.decoder(x)
-
-        if self.training: return output, new_hidden, (final_rnn_output, final_rnn_hidden)
+        if self.training: return output, new_hidden, final_rnn_hidden
         else: return output
