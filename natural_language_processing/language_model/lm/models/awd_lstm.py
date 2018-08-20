@@ -122,7 +122,7 @@ class ARTAR(nn.Module):
     def forward(self, hidden):
         ar = torch.norm(hidden)
 
-        diff = hidden[:, -1, :] - hidden[:, 1:, :]
+        diff = hidden[:, :-1, :] - hidden[:, 1:, :]
         tar = torch.norm(diff)
 
         return (self.alpha * ar) + (self.beta * tar)
@@ -132,10 +132,10 @@ class RecLM(nn.Module):
     """
     Recurrent Language Model
 
-    Default values taken from the awd_lstm paper, except for vocab size
+    Default values taken from the awd_lstm paper
     """
     def __init__(self, embedding_dropout=0.4, weight_dropout=0.5, embedding_dim=400, hidden_size=1150,
-                 num_layers=3, vocab_size=60002, padding_idx=0):
+                 num_layers=3, vocab_size=30002, padding_idx=0):
         super().__init__()
 
         # first, the embedding layer with vocabulary-specific dropout
@@ -154,9 +154,10 @@ class RecLM(nn.Module):
 
         self.num_layers = num_layers
 
-        self.decoder = nn.Linear(embedding_dim, vocab_size, bias=False)
+        self.decoder = nn.Linear(embedding_dim, vocab_size)
         # tie weights
         self.decoder.weight = self.embedding.embedding.raw_weight
+        self.decoder.bias.data.fill_(0)
 
     def forward(self, x, hidden):
 

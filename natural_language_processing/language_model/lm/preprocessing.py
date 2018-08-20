@@ -14,8 +14,7 @@ FIELD_TOKEN = 'xfld'
 
 class WikiTextTokenizer(object):
     """
-    Loads, tokenizes and then returns batches of the
-    wikitext dataset
+    Loads, and tokenizes the wikitext dataset
     """
     def __init__(self, filepaths, processes=6, parallelism=4):
 
