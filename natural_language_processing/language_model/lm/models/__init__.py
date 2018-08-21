@@ -2,6 +2,7 @@ import torch
 from lm.models.awd_lstm import RecLM, ARTAR
 from lm.models.tcn import ConvLM
 
+
 def accuracy(output_labels, true_labels):
     """
     For a more interpretable metric, calculate the accuracy of the predictions.

@@ -7,8 +7,7 @@ from .awd_lstm import VDEmbedding
 
 class WDConv(nn.Module):
     """
-    A weight dropped ConvNet. To be used
-    for non-last layers of the TCN convolutional block
+    A weight dropped ConvNet. To be used in the TCN convolutional block
     """
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, dilation,
@@ -71,10 +70,9 @@ class ConvLM(nn.Module):
         embedding_dim: the input embedding size.
         hidden_channels: the output embedding sizes of the interim layers. Similar to hidden
             size in the awd_lstm
-        kernel_sizes: a float, or a list of length 3. Kernel sizes for each of the convolutional
-            layers in the block
-        dropouts: a float, or a list of length 3. DropConnect values for each of the convolutional
-            layers in the block.
+        kernel_size: float. Kernel sizes for the convolutional layers in the block
+        conv_dropout: float. DropConnect values for the convolutional layers in the block.
+        embedding_dropout: float. Dropout for the embedding layers
     """
 
     def __init__(self, num_blocks=2, embedding_dim=400, hidden_channels=1150, kernel_size=2, conv_dropout=0.2,
