@@ -14,7 +14,8 @@ class OneCycle(object):
         self.optimizer = optimizer
         self.min_lr = min_lr
         self.max_lr = max_lr
-
+        self.upswing = upswing
+        self.downswing = downswing
         # now, lets calculate the difference increments
         self.upsteps = epoch_length * upswing
         self.up_inc = (max_lr - min_lr) / self.upsteps
@@ -25,6 +26,9 @@ class OneCycle(object):
         # this will help us figuring out if we should be increasing or decreasing
         self.stepcount = 0
         self.current_lr = min_lr
+
+    def num_epochs(self):
+        return self.upswing + self.downswing
 
     def get_lr(self):
         if self.stepcount > self.upsteps:

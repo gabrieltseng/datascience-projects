@@ -36,7 +36,7 @@ class WDConv(nn.Module):
         # in case we're on a GPU
         if raw_weights.is_cuda: weight_mask = weight_mask.cuda()
 
-        self.conv.register_parameter('weight', weight_mask)
+        self.conv.register_parameter('weight', nn.Parameter(weight_mask))
         # this makes sure we only look into the past
         return self.conv(x)
 
@@ -96,8 +96,10 @@ class ConvLM(nn.Module):
     def forward(self, x):
 
         x = self.embedding(x)
-
+        x = x.permute(0, 2, 1).contiguous()
         for block in range(self.num_blocks):
             x = getattr(self, 'TCNBlock_{}'.format(block))(x)
-
+        x = x.permute(0, 2, 1).contiguous()
+        # get the last output only
+        x = x[:, -1, :].squeeze(1)
         return self.decoder(x)
