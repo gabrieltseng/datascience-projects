@@ -3,11 +3,13 @@ from torch.nn import functional as F
 from torch.nn.utils import weight_norm
 
 from .awd_lstm import VDEmbedding
+from .dropout import VariationalDropout
 
 
 class WDConv(nn.Module):
     """
-    A weight dropped ConvNet. To be used in the TCN convolutional block
+    A variationally weight dropped ConvNet.
+    To be used in the TCN convolutional block
     """
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, dilation,
@@ -76,7 +78,7 @@ class ConvLM(nn.Module):
     """
 
     def __init__(self, num_blocks=2, embedding_dim=400, hidden_channels=1150, kernel_size=2, conv_dropout=0.2,
-                 embedding_dropout=0.4, vocab_size=30002, padding_idx=0):
+                 embedding_dropout=0.4, var_dropout_emb=0.1, vocab_size=30002, padding_idx=0):
         super().__init__()
 
         self.embedding = VDEmbedding(embedding_dropout, embedding_dim, vocab_size, padding_idx)
@@ -89,13 +91,17 @@ class ConvLM(nn.Module):
 
         self.decoder = nn.Linear(embedding_dim, vocab_size)
 
+        # finally, dropouts
+        self.emb_drop = VariationalDropout(p=var_dropout_emb)
+
+    def init_weights(self):
         # tie weights
         self.decoder.weight = self.embedding.embedding.raw_weight
         self.decoder.bias.data.fill_(0)
 
     def forward(self, x):
 
-        x = self.embedding(x)
+        x = self.emb_drop(self.embedding(x))
         x = x.permute(0, 2, 1).contiguous()
         for block in range(self.num_blocks):
             x = getattr(self, 'TCNBlock_{}'.format(block))(x)

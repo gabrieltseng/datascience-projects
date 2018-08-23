@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import math
 
+from .dropout import VariationalDropout
 
 class WDLSTM(nn.Module):
     """
@@ -134,34 +135,41 @@ class RecLM(nn.Module):
 
     Default values taken from the awd_lstm paper
     """
-    def __init__(self, embedding_dropout=0.4, weight_dropout=0.5, embedding_dim=400, hidden_size=1150,
-                 num_layers=3, vocab_size=30002, padding_idx=0):
+    def __init__(self, word_dropout=0.4, rnn_weight_dropout=0.3, var_dropout_emb=0.1, var_dropout_rnn=0.4,
+                 embedding_dim=400, hidden_size=1150, num_layers=3, vocab_size=30002, padding_idx=0):
         super().__init__()
 
         # first, the embedding layer with vocabulary-specific dropout
-        self.embedding = VDEmbedding(embedding_dropout, embedding_dim, vocab_size, padding_idx)
+        self.embedding = VDEmbedding(word_dropout, embedding_dim, vocab_size, padding_idx)
 
         for layer in range(num_layers):
             # Independent embedding and hidden size
             if layer == 0:
-                wdrnn = WDLSTM(dropout=weight_dropout, input_size=embedding_dim, hidden_size=hidden_size)
+                wdrnn = WDLSTM(dropout=rnn_weight_dropout, input_size=embedding_dim, hidden_size=hidden_size)
             elif layer == (num_layers - 1):
-                wdrnn = WDLSTM(dropout=weight_dropout, input_size=hidden_size, hidden_size=embedding_dim)
+                wdrnn = WDLSTM(dropout=rnn_weight_dropout, input_size=hidden_size, hidden_size=embedding_dim)
             else:
-                wdrnn = WDLSTM(dropout=weight_dropout, input_size=hidden_size, hidden_size=hidden_size)
+                wdrnn = WDLSTM(dropout=rnn_weight_dropout, input_size=hidden_size, hidden_size=hidden_size)
 
             setattr(self, 'wdrnn_{}'.format(layer), wdrnn)
 
         self.num_layers = num_layers
 
         self.decoder = nn.Linear(embedding_dim, vocab_size)
-        # tie weights
+
+        # finally, variational dropout
+        self.emb_drop = VariationalDropout(p=var_dropout_emb)
+        self.final_rnn_drop = VariationalDropout(p=var_dropout_rnn)
+
+        self.init_weights()
+
+    def init_weights(self):
         self.decoder.weight = self.embedding.embedding.raw_weight
         self.decoder.bias.data.fill_(0)
 
     def forward(self, x, hidden):
 
-        x = self.embedding(x)
+        x = self.emb_drop(self.embedding(x))
         new_hidden = []
         for layer in range(self.num_layers):
             x, h = getattr(self, 'wdrnn_{}'.format(layer, hidden[layer]))(x)
@@ -172,7 +180,7 @@ class RecLM(nn.Module):
 
             new_hidden.append(h)
         # we only want the last output to be decoded
-        final_x = x[:, -1, :].squeeze(1)
+        final_x = self.final_rnn_drop(x[:, -1, :].squeeze(1))
         output = self.decoder(final_x)
 
         if self.training: return output, new_hidden, final_rnn_hidden
