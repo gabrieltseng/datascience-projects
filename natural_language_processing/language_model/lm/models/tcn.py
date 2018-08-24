@@ -56,13 +56,17 @@ class TCNBlock(nn.Module):
         self.conv1 = weight_norm(WDConv(in_channels, hidden_channels, kernel_size, stride=stride,
                                         padding=self.padding, dilation=dilation, dropout=dropout),
                                  name='raw_weight')
-        self.conv2 = weight_norm(WDConv(hidden_channels, in_channels, kernel_size, stride=stride,
+        self.conv2 = weight_norm(WDConv(hidden_channels, hidden_channels, kernel_size, stride=stride,
+                                        padding=self.padding, dilation=dilation, dropout=dropout),
+                                 name='raw_weight')
+        self.conv3 = weight_norm(WDConv(hidden_channels, in_channels, kernel_size, stride=stride,
                                         padding=self.padding, dilation=dilation, dropout=dropout),
                                  name='raw_weight')
 
     def forward(self, x):
         out = F.relu(self.conv1(x)[:, :, :-self.padding])
         out = F.relu(self.conv2(out)[:, :, :-self.padding])
+        out = F.relu(self.conv3(out)[:, :, :-self.padding])
         return F.relu(out + x)
 
 
@@ -77,8 +81,8 @@ class ConvLM(nn.Module):
         embedding_dropout: float. Dropout for the embedding layers
     """
 
-    def __init__(self, num_blocks=2, embedding_dim=400, hidden_channels=1150, kernel_size=2, conv_dropout=0.2,
-                 embedding_dropout=0.4, var_dropout_emb=0.1, vocab_size=30002, padding_idx=0):
+    def __init__(self, num_blocks=3, embedding_dim=400, hidden_channels=1150, kernel_size=2, conv_dropout=0.2,
+                 embedding_dropout=0.1, var_dropout_emb=0.1, vocab_size=30002, padding_idx=0):
         super().__init__()
 
         self.embedding = VDEmbedding(embedding_dropout, embedding_dim, vocab_size, padding_idx)
