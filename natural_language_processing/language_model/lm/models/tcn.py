@@ -48,31 +48,39 @@ class TCNBlock(nn.Module):
     A weight dropped residual TCN Block
     """
 
-    def __init__(self, in_channels, hidden_channels, kernel_size, stride, dilation, dropout):
+    def __init__(self, num_layers, in_channels, hidden_channels, kernel_size, stride, dilation,
+                 dropout):
         super().__init__()
 
         self.padding = (kernel_size - 1) * dilation
 
-        self.conv1 = weight_norm(WDConv(in_channels, hidden_channels, kernel_size, stride=stride,
-                                        padding=self.padding, dilation=dilation, dropout=dropout),
-                                 name='raw_weight')
-        self.conv2 = weight_norm(WDConv(hidden_channels, hidden_channels, kernel_size, stride=stride,
-                                        padding=self.padding, dilation=dilation, dropout=dropout),
-                                 name='raw_weight')
-        self.conv3 = weight_norm(WDConv(hidden_channels, in_channels, kernel_size, stride=stride,
-                                        padding=self.padding, dilation=dilation, dropout=dropout),
-                                 name='raw_weight')
+        for i in range(1, num_layers + 1):
+            layer = weight_norm(WDConv(in_channels if i == 1 else hidden_channels,
+                                       hidden_channels if i != num_layers else in_channels,
+                                       kernel_size, stride=stride, padding=self.padding,
+                                       dilation=dilation, dropout=dropout),
+                                name='raw_weight')
+            layer_name = 'conv{}'.format(i)
+            setattr(self, layer_name, layer)
+
+        self.num_layers = num_layers
 
     def forward(self, x):
-        out = F.relu(self.conv1(x)[:, :, :-self.padding])
-        out = F.relu(self.conv2(out)[:, :, :-self.padding])
-        out = F.relu(self.conv3(out)[:, :, :-self.padding])
+
+        for i in range(1, self.num_layers + 1):
+            layer_name = 'conv{}'.format(i)
+            if i == 1:
+                out = F.relu(getattr(self, layer_name)(x)[:, :, :-self.padding])
+            else:
+                out = F.relu(getattr(self, layer_name)(out)[:, :, :-self.padding])
         return F.relu(out + x)
 
 
 class ConvLM(nn.Module):
     """
     Arguments:
+        num_blocks: number of TCN blocks
+        num_layers: number of convolutional layers per TCN block
         embedding_dim: the input embedding size.
         hidden_channels: the output embedding sizes of the interim layers. Similar to hidden
             size in the awd_lstm
@@ -81,16 +89,16 @@ class ConvLM(nn.Module):
         embedding_dropout: float. Dropout for the embedding layers
     """
 
-    def __init__(self, num_blocks=3, embedding_dim=400, hidden_channels=1150, kernel_size=2, conv_dropout=0.2,
-                 embedding_dropout=0.1, var_dropout_emb=0.1, vocab_size=30002, padding_idx=0):
+    def __init__(self, num_blocks=3, num_layers=3, embedding_dim=400, hidden_channels=1150, kernel_size=2,
+                 conv_dropout=0.2, embedding_dropout=0.1, var_dropout_emb=0.1, vocab_size=30002, padding_idx=0):
         super().__init__()
 
         self.embedding = VDEmbedding(embedding_dropout, embedding_dim, vocab_size, padding_idx)
         self.num_blocks = num_blocks
         for block in range(num_blocks):
             dilation_size = 2 ** block
-            convblock = TCNBlock(embedding_dim, hidden_channels, kernel_size, stride=1,
-                                 dilation=dilation_size, dropout=conv_dropout)
+            convblock = TCNBlock(num_layers, embedding_dim, hidden_channels, kernel_size,
+                                 stride=1, dilation=dilation_size, dropout=conv_dropout)
             setattr(self, 'TCNBlock_{}'.format(block), convblock)
 
         self.decoder = nn.Linear(embedding_dim, vocab_size)
