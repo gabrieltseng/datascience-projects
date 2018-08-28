@@ -1,32 +1,42 @@
 from sklearn.utils import shuffle
-from itertools import islice
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
 
+from ..utils import chunk
+
 
 class ToxicDataLoader(object):
+    """
+    DataLoader for toxic comments
 
-    def __init__(self, comments, labels, pad_idx, batch_size):
+    Args:
+        comments: numpy array or list of tokenized comment intergers
+        labels: numpy array or list of labels
+        batch_size: how many samples per batch to load
+        pad_idx: the index of padded values
+        sortish: if True, uses the sort-ish iterator. This allows some sorting,
+            as well as shuffling. If False, just returns the comments sorted by
+            length.
+    """
+    def __init__(self, comments, labels, batch_size, pad_idx, sortish=True):
         self.comments = comments
         self.labels = labels
         self.pad_idx = pad_idx
         self.batch_size = batch_size
+        self.sortish = sortish
 
     def __iter__(self):
-        return _sortish_iter(self)
+        if self.sortish:
+            return _SortishIter(self)
+        else:
+            return _SortIter(self)
 
     def __len__(self):
         return int(len(self.comments) / self.batch_size)
 
 
-class _sortish_iter(object):
-    """
-    From torchtext:
-    `Partitions data into chunks of size 100*batch_size, sorts examples within
-    each chunk using sort_key, then batch these examples and shuffle the
-    batches.`
-    """
+class SorterBase(object):
 
     def __init__(self, loader):
         self.comments = loader.comments
@@ -36,23 +46,15 @@ class _sortish_iter(object):
         self.idx = 0
         self.max_idx = len(loader.comments) - 1
 
-        self._order_ish()
+        sorted_comments, sorted_labels = self._order()
+        self.sorted_comments = sorted_comments
+        self.sorted_labels = sorted_labels
 
-    def _order_ish(self):
-        # first, shuffle everything
-        comments, labels = shuffle(self.comments, self.labels)
-        data = zip(comments, labels)
-        ishsorted_comments = []
-        ishsorted_labels = []
-        # then, chunk them
-        for megabatch in self.chunk(data, self.batch_size * 100):
-            # sort within the batch
-            com, lab = map(list, zip(*sorted(megabatch, key=lambda x: len(x[0]),
-                                             reverse=True)))
-            ishsorted_comments.extend([torch.Tensor(x) for x in com])
-            ishsorted_labels.extend(lab)
-        self.sorted_comments = ishsorted_comments
-        self.sorted_labels = torch.Tensor(ishsorted_labels)
+    def _order(self):
+        """
+        Should return sorted comments and labels
+        """
+        raise NotImplementedError
 
     def __iter__(self):
         return self
@@ -71,11 +73,36 @@ class _sortish_iter(object):
         else:
             raise StopIteration()
 
-    @staticmethod
-    def chunk(it, size):
-        """
-        An iterator which returns chunks of items (i.e. size items per call, instead of 1).
-        Setting size=1 returns a normal iterator.
-        """
-        it = iter(it)
-        return iter(lambda: tuple(islice(it, size)), ())
+
+class _SortishIter(SorterBase):
+    """
+    From torchtext:
+    `Partitions data into chunks of size 100*batch_size, sorts examples within
+    each chunk using sort_key, then batch these examples and shuffle the
+    batches.`
+    """
+    def _order(self):
+        # first, shuffle everything
+        comments, labels = shuffle(self.comments, self.labels)
+        data = zip(comments, labels)
+        ishsorted_comments = []
+        ishsorted_labels = []
+        # then, chunk them
+        for megabatch in chunk(data, self.batch_size * 100):
+            # sort within the batch
+            com, lab = zip(*sorted(megabatch, key=lambda x: len(x[0]),
+                                   reverse=True))
+            ishsorted_comments.extend([torch.Tensor(x) for x in com])
+            ishsorted_labels.extend(lab)
+        return ishsorted_comments, torch.Tensor(ishsorted_labels)
+
+
+class _SortIter(SorterBase):
+    """
+    Just sorts the comments and labels. Useful for the validation set.
+    """
+    def _order(self):
+        data = zip(self.comments, self.labels)
+        com, lab = map(list, zip(*sorted(data, key=lambda x: len(x[0]),
+                       reverse=True)))
+        return com, lab

@@ -7,6 +7,7 @@ from spacy.attrs import IS_UPPER
 from spacy.lang.en import English
 
 from .base import Tokenizer, BOS_TOKEN
+from ..utils import chunk
 
 
 class ToxicTokenizer(Tokenizer):
@@ -57,7 +58,7 @@ class ToxicTokenizer(Tokenizer):
         """
         Articles will be processed in parallel
         """
-        articles_iter = self.chunk(self.articles, size=self.chunks)
+        articles_iter = chunk(self.articles, size=self.chunks)
         length = int(len(self.articles) / self.chunks)
         nlp_iter = repeat(English())
 
