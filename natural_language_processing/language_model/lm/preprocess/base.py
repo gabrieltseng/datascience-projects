@@ -12,13 +12,14 @@ class Tokenizer(object):
     """
     dimension = 1
 
-    def __init__(self, filepaths, processes=6, parallelism=4, chunks=1):
+    def __init__(self, filepaths, processes=6, parallelism=4, chunks=1, calculate_coverage=True):
 
         self.filepaths = filepaths
         self.articles = self.read_articles()
         self.processes = processes
         self.parallelism = parallelism
         self.chunks = chunks
+        self.calculate_coverage = calculate_coverage
 
 
     def get_one_article(self):
@@ -74,6 +75,21 @@ class Tokenizer(object):
         elif self.dimension == 2:
             tokenized_ints = [[word2int.get(tok, unknown_int) for tok in subtext] for subtext
                               in tokenized_texts]
+        if self.calculate_coverage:
+            coverage = self.coverage_calculator(tokenized_ints, unknown_int)
+            print('Coverage is {} %'.format(coverage * 100))
 
         if return_word2int: return tokenized_ints, word2int
         else: return tokenized_ints
+
+    def coverage_calculator(self, tokenized_ints, unknown_idx):
+        if self.dimension == 1:
+            num_known = sum([1 for tok in tokenized_ints if tok != unknown_idx])
+            total_toks = len(tokenized_ints)
+
+        elif self.dimension == 2:
+            num_known = sum([sum([1 for tok in sublist if tok != unknown_idx])
+                                for sublist in tokenized_ints])
+            total_toks = sum([len(sublist) for sublist in tokenized_ints])
+
+        return num_known / total_toks
