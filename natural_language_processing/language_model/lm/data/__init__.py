@@ -1,2 +1,2 @@
 from .language_model import LMDataLoader
-from .toxic import ToxicDataLoader
+from .toxic import ToxicDataLoader, flatten

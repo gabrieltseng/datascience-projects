@@ -90,9 +90,11 @@ class ConvLM(nn.Module):
     """
 
     def __init__(self, num_blocks=3, num_layers=3, embedding_dim=400, hidden_channels=1150, kernel_size=2,
-                 conv_dropout=0.2, embedding_dropout=0.1, var_dropout_emb=0.1, vocab_size=30002, padding_idx=0):
+                 conv_dropout=0.2, embedding_dropout=0.1, var_dropout_emb=0.1, vocab_size=30002, padding_idx=0,
+                 finetuning=False):
         super().__init__()
 
+        self.finetuning = finetuning
         self.embedding = VDEmbedding(embedding_dropout, embedding_dim, vocab_size, padding_idx)
         self.num_blocks = num_blocks
         for block in range(num_blocks):
@@ -101,7 +103,9 @@ class ConvLM(nn.Module):
                                  stride=1, dilation=dilation_size, dropout=conv_dropout)
             setattr(self, 'TCNBlock_{}'.format(block), convblock)
 
-        self.decoder = nn.Linear(embedding_dim, vocab_size)
+        if not finetuning:
+            self.decoder = nn.Linear(embedding_dim, vocab_size)
+            self.init_weights()
 
         # finally, dropouts
         self.emb_drop = VariationalDropout(p=var_dropout_emb)
@@ -119,5 +123,5 @@ class ConvLM(nn.Module):
             x = getattr(self, 'TCNBlock_{}'.format(block))(x)
         x = x.permute(0, 2, 1).contiguous()
         # get the last output only
-        x = x[:, -1, :].squeeze(1)
-        return self.decoder(x)
+        if not self.finetuning: return self.decoder(x[:, -1, :].squeeze(1))
+        else: return x

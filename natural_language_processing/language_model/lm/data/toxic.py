@@ -1,4 +1,5 @@
 from sklearn.utils import shuffle
+import numpy as np
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
@@ -19,12 +20,14 @@ class ToxicDataLoader(object):
             as well as shuffling. If False, just returns the comments sorted by
             length.
     """
-    def __init__(self, comments, labels, batch_size, pad_idx, sortish=True):
+    def __init__(self, comments, labels, batch_size, pad_idx, sortish=True,
+                 device=torch.device("cpu")):
         self.comments = comments
         self.labels = labels
         self.pad_idx = pad_idx
         self.batch_size = batch_size
         self.sortish = sortish
+        self.device = device
 
     def __iter__(self):
         if self.sortish:
@@ -43,6 +46,7 @@ class SorterBase(object):
         self.labels = loader.labels
         self.pad_idx = loader.pad_idx
         self.batch_size = loader.batch_size
+        self.device = loader.device
         self.idx = 0
         self.max_idx = len(loader.comments) - 1
 
@@ -92,9 +96,9 @@ class _SortishIter(SorterBase):
             # sort within the batch
             com, lab = zip(*sorted(megabatch, key=lambda x: len(x[0]),
                                    reverse=True))
-            ishsorted_comments.extend([torch.Tensor(x) for x in com])
+            ishsorted_comments.extend([torch.tensor(x, device=self.device) for x in com])
             ishsorted_labels.extend(lab)
-        return ishsorted_comments, torch.Tensor(ishsorted_labels)
+        return ishsorted_comments, torch.tensor(ishsorted_labels, device=self.device)
 
 
 class _SortIter(SorterBase):
@@ -105,4 +109,16 @@ class _SortIter(SorterBase):
         data = zip(self.comments, self.labels)
         com, lab = map(list, zip(*sorted(data, key=lambda x: len(x[0]),
                        reverse=True)))
-        return com, lab
+        com = [torch.tensor(x, device=self.device) for x in com]
+        return com, torch.tensor(lab, device=self.device)
+
+
+def flatten(comments, labels):
+    """
+    Since Kaggle's evaluation is column-wise, the loss should be too.
+    """
+    num_labels = labels.shape[1]
+    comments = np.repeat(comments, num_labels)
+    labels = labels.flatten()
+
+    return comments, labels
