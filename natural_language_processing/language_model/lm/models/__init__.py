@@ -4,6 +4,7 @@ from copy import deepcopy
 
 from lm.models.awd_lstm import RecLM, ARTAR
 from lm.models.tcn import ConvLM
+from lm.models.classifier import LanguageClassifier
 
 
 def accuracy(output_labels, true_labels):
@@ -50,4 +51,9 @@ def prune_state_dict(pt_info, model_type='ConvLM'):
                 layer_name = 'conv{}'.format(layer)
                 extra_parameter = '{}.{}.conv.weight'.format(block_name, layer_name)
                 state_dict.pop(extra_parameter)
+    if model_type == 'RecLM':
+        for layer in range(pt_info.get('num_layers', 3)):
+            layer_name = 'wdrnn_{}'.format(layer)
+            extra_parameter = '{}.lstm.weight_hh_l0'.format(layer_name)
+            state_dict.pop(extra_parameter)
     return state_dict

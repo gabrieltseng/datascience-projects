@@ -181,14 +181,13 @@ class RecLM(nn.Module):
                 final_rnn_hidden = h[0]
 
             new_hidden.append(h)
-
-        if self.finetuning:
+        final_x = self.final_rnn_drop(x[:, -1, :].squeeze(1))
+        if not self.finetuning:
             # we only want the last output to be decoded
-            final_x = self.final_rnn_drop(x[:, -1, :].squeeze(1))
             output = self.decoder(final_x)
             if self.training: return output, new_hidden, final_rnn_hidden
             else: return output
         else:
-            output = self.final_rnn_drop(x)
+            output = self.final_rnn_drop(final_x)
             if self.training: return output, new_hidden, final_rnn_hidden
             else: return output

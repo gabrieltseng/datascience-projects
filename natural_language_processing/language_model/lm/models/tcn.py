@@ -122,6 +122,7 @@ class ConvLM(nn.Module):
         for block in range(self.num_blocks):
             x = getattr(self, 'TCNBlock_{}'.format(block))(x)
         x = x.permute(0, 2, 1).contiguous()
+        x = x[:, -1, :].squeeze(1)
         # get the last output only
-        if not self.finetuning: return self.decoder(x[:, -1, :].squeeze(1))
+        if not self.finetuning: return self.decoder(x)
         else: return x
