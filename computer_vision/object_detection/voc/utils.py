@@ -74,6 +74,8 @@ def normalize(image, mean=None, std=None):
     If no mean and std are passed, this method will just swap the image axes so they
     are suitable for pytorch
     """
+    if image.max() > 1:
+        image = image / 255
     if mean and std:
         image = (image - mean) / std
     # in addition, roll the axis so that they suit pytorch
@@ -88,6 +90,7 @@ def denormalize(image, mean=None, std=None):
     image = image.swapaxes(0, 2)
     if mean and std:
         image = (image * std) + mean
+    image *= 255
     return image.astype(int)
 
 
