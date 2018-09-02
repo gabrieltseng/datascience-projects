@@ -79,7 +79,7 @@ def normalize(image, mean=None, std=None):
     if mean and std:
         image = (image - mean) / std
     # in addition, roll the axis so that they suit pytorch
-    return image.swapaxes(2, 0)
+    return image.swapaxes(2, 0).swapaxes(1, 2)
 
 
 def denormalize(image, mean=None, std=None):
@@ -87,7 +87,7 @@ def denormalize(image, mean=None, std=None):
     Given a normalized image, and the statistics according to which it was normalized,
     denormalize it
     """
-    image = image.swapaxes(0, 2)
+    image = image.swapaxes(1, 2).swapaxes(0, 2)
     if mean and std:
         image = (image * std) + mean
     image *= 255
