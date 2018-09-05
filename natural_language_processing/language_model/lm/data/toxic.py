@@ -98,7 +98,7 @@ class _SortishIter(SorterBase):
                                    reverse=True))
             ishsorted_comments.extend([torch.tensor(x, device=self.device) for x in com])
             ishsorted_labels.extend(lab)
-        return ishsorted_comments, torch.tensor(ishsorted_labels, device=self.device)
+        return ishsorted_comments, torch.tensor(np.array(ishsorted_labels), device=self.device)
 
 
 class _SortIter(SorterBase):
