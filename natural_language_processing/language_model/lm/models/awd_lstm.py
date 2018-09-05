@@ -144,18 +144,10 @@ class RecLM(nn.Module):
         # first, the embedding layer with vocabulary-specific dropout
         self.embedding = VDEmbedding(word_dropout, embedding_dim, vocab_size, padding_idx)
 
-        for layer in range(num_layers):
-            # Independent embedding and hidden size
-            if layer == 0:
-                wdrnn = WDLSTM(dropout=rnn_weight_dropout, input_size=embedding_dim, hidden_size=hidden_size)
-            elif layer == (num_layers - 1):
-                wdrnn = WDLSTM(dropout=rnn_weight_dropout, input_size=hidden_size, hidden_size=embedding_dim)
-            else:
-                wdrnn = WDLSTM(dropout=rnn_weight_dropout, input_size=hidden_size, hidden_size=hidden_size)
-
-            setattr(self, 'wdrnn_{}'.format(layer), wdrnn)
-
-        self.num_layers = num_layers
+        self.rnns = nn.ModuleList([WDLSTM(dropout=rnn_weight_dropout,
+                                          input_size=embedding_dim if i == 0 else hidden_size,
+                                          hidden_size=embedding_dim if i != 0 and i != num_layers else hidden_size)
+                                   for i in range(num_layers)])
 
         if not finetuning:
             self.decoder = nn.Linear(embedding_dim, vocab_size)
@@ -173,13 +165,11 @@ class RecLM(nn.Module):
 
         x = self.emb_drop(self.embedding(x))
         new_hidden = []
-        for layer in range(self.num_layers):
-            x, h = getattr(self, 'wdrnn_{}'.format(layer, hidden[layer]))(x)
-
-            if layer == (self.num_layers - 1):
+        for i, wdrnn in enumerate(self.rnns):
+            x, h = wdrnn(x, hidden[i])
+            if i == (len(self.rnns) - 1):
                 # no need for the cell state here
                 final_rnn_hidden = h[0]
-
             new_hidden.append(h)
         final_x = self.final_rnn_drop(x[:, -1, :].squeeze(1))
         if not self.finetuning:

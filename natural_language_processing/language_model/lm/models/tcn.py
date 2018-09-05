@@ -54,25 +54,19 @@ class TCNBlock(nn.Module):
 
         self.padding = (kernel_size - 1) * dilation
 
-        for i in range(1, num_layers + 1):
-            layer = weight_norm(WDConv(in_channels if i == 1 else hidden_channels,
+        self.wd_convs = nn.ModuleList([weight_norm(WDConv(in_channels if i == 1 else hidden_channels,
                                        hidden_channels if i != num_layers else in_channels,
                                        kernel_size, stride=stride, padding=self.padding,
                                        dilation=dilation, dropout=dropout),
-                                name='raw_weight')
-            layer_name = 'conv{}'.format(i)
-            setattr(self, layer_name, layer)
-
-        self.num_layers = num_layers
+                                       name='raw_weight') for i in range(1, num_layers + 1)])
 
     def forward(self, x):
 
-        for i in range(1, self.num_layers + 1):
-            layer_name = 'conv{}'.format(i)
-            if i == 1:
-                out = F.relu(getattr(self, layer_name)(x)[:, :, :-self.padding])
+        for i, conv in enumerate(self.wd_convs):
+            if i == 0:
+                out = F.relu(conv(x)[:, :, :-self.padding])
             else:
-                out = F.relu(getattr(self, layer_name)(out)[:, :, :-self.padding])
+                out = F.relu(conv(out)[:, :, :-self.padding])
         return F.relu(out + x)
 
 
@@ -96,13 +90,10 @@ class ConvLM(nn.Module):
 
         self.finetuning = finetuning
         self.embedding = VDEmbedding(embedding_dropout, embedding_dim, vocab_size, padding_idx)
-        self.num_blocks = num_blocks
-        for block in range(num_blocks):
-            dilation_size = 2 ** block
-            convblock = TCNBlock(num_layers, embedding_dim, hidden_channels, kernel_size,
-                                 stride=1, dilation=dilation_size, dropout=conv_dropout)
-            setattr(self, 'TCNBlock_{}'.format(block), convblock)
 
+        self.convblocks = nn.ModuleList([TCNBlock(num_layers, embedding_dim, hidden_channels, kernel_size,
+                                                  stride=1, dilation=2 ** block, dropout=conv_dropout)
+                                         for block in range(num_blocks)])
         if not finetuning:
             self.decoder = nn.Linear(embedding_dim, vocab_size)
             self.init_weights()
@@ -119,8 +110,8 @@ class ConvLM(nn.Module):
 
         x = self.emb_drop(self.embedding(x))
         x = x.permute(0, 2, 1).contiguous()
-        for block in range(self.num_blocks):
-            x = getattr(self, 'TCNBlock_{}'.format(block))(x)
+        for convblock in self.convblocks:
+            x = convblock(x)
         x = x.permute(0, 2, 1).contiguous()
         x = x[:, -1, :].squeeze(1)
         # get the last output only
