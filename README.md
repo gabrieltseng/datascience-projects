@@ -13,6 +13,7 @@ I approached the projects in the following order (latest to earliest):
 <details>
 <summary><strong><em>Table of Contents</em></strong></summary>
 
+* [Language Model](#LanguageModel)
 * [Object Detection](#ObjectDetection)
 * [Stanford Databases Course](#StanfordDatabases)
 * [ThinkBayes (Bayesian Statistics)](#ThinkBayes)
@@ -24,6 +25,12 @@ I approached the projects in the following order (latest to earliest):
 * [Image Recognition](#ImageRecognition)
 
 </details>
+
+### [Language model](natural_language_model/language_model)
+
+I experiment with two language models, one based of the [weight dropped LSTM](https://arxiv.org/abs/1708.02182), and one
+based off [temporal convolutional networks](https://arxiv.org/abs/1803.01271). Both are trained on the 
+[Wikitext 2 dataset](https://einstein.ai/research/the-wikitext-long-term-dependency-language-modeling-dataset).
 
 ### [Object Detection](computer_vision/object_detection)<a name="ObjectDetection"></a>
 
