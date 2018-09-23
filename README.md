@@ -26,7 +26,7 @@ I approached the projects in the following order (latest to earliest):
 
 </details>
 
-### [Language model](natural_language_model/language_model)
+### [Language model](natural_language_processing/language_model)
 
 I experiment with two language models, one based of the [weight dropped LSTM](https://arxiv.org/abs/1708.02182), and one
 based off [temporal convolutional networks](https://arxiv.org/abs/1803.01271). Both are trained on the 
