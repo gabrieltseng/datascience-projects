@@ -53,3 +53,22 @@ class ConcreteRegularizer(nn.Module):
         """Apply the regularizing weights to concrete dropout
         """
         return self.lam * torch.sum(mask, tuple(range(mask.ndimension())))
+
+
+class Annealer(object):
+    """
+    A scheduler for the concrete dropout optimizer. Over n batches, linearly
+    increases the learning rate from 0 to max_rate
+    """
+    def __init__(self, optimizer, n=30, max_rate=0.01):
+        self.optimizer = optimizer
+        self.max_rate = max_rate
+        self.stepsize = max_rate / n
+
+        self.current_lr = 0
+
+    def step(self):
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = self.current_lr
+        if self.current_lr < self.max_rate:
+            self.current_lr += self.stepsize

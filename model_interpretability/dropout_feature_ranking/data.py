@@ -13,10 +13,11 @@ class PhysioNetDataset(object):
 
     def __init__(self, data_dir=Path('PhysioNet/set-a'), outcomes_dir=Path('PhysioNet/Outcomes-a.txt'),
                  mask=None, device=torch.device("cpu"), normalizing_dict=None,
-                 processes=6, parallelism=4, chunks=1):
+                 processes=6, parallelism=4, chunks=1, binary_features=False):
         self.device = device
         self.data_dir = data_dir
         self.outcomes = self._load_outcomes(outcomes_dir)
+        self.binary_features = binary_features
 
         # load up all the filenames (patient ids), and sort them
         files = np.array(sorted([x for x in data_dir.iterdir()]))
@@ -94,6 +95,7 @@ class PhysioNetDataset(object):
         outcomes_iter = repeat(self.outcomes)
         normalizing_dict_iter = repeat(self.normalizing_dict)
         device_iter = repeat(self.device.type)
+        binary_iter = repeat(self.binary_features)
 
         input_arrays = []
         outcomes = []
@@ -102,7 +104,7 @@ class PhysioNetDataset(object):
             i = 0
             for result in executor.map(process_record, files_iter, outcomes_iter,
                                        normalizing_dict_iter, device_iter,
-                                       chunksize=chunksize):
+                                       binary_iter, chunksize=chunksize):
                 for input_array, outcome in result:
                     input_arrays.append(input_array)
                     outcomes.append(outcome)
@@ -112,7 +114,7 @@ class PhysioNetDataset(object):
         return torch.stack(input_arrays, 0), torch.stack(outcomes, 0)
 
 
-def process_record(filepath, outcomes, normalizing_dict, device):
+def process_record(filepath, outcomes, normalizing_dict, device, binary_features):
     device = torch.device(device)  # the device object itself can't be pickled
     if type(filepath) is tuple:
         # happens when an iterator is used
@@ -123,7 +125,8 @@ def process_record(filepath, outcomes, normalizing_dict, device):
     # split the time into hours
     file_csv['hour'] = file_csv['Time'].apply(lambda x: int(x.split(':')[0]))
 
-    output_array = torch.zeros((48, 37), device=device)
+    num_features = 74 if binary_features else 37
+    output_array = torch.zeros((48, num_features), device=device)
     for i in range(48):
         hourly_data = file_csv[file_csv.hour == i]
         for param, vals in normalizing_dict.items():
@@ -132,5 +135,7 @@ def process_record(filepath, outcomes, normalizing_dict, device):
                 normalized_hourly_average = (hourly_param.Value.mean() - vals['mean']) / \
                                             (vals['std'] if vals['std'] != 0 else 1)
                 output_array[i, vals['idx']] = normalized_hourly_average
+                if binary_features:
+                    output_array[i, vals['idx'] + 37] = 1
     # map() flattens the results; a 2d list prevents this
     return [[output_array, torch.tensor(outcome, device=device)]]
