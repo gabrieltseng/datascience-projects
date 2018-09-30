@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 
 class ConcreteDropout(nn.Module):
@@ -14,7 +13,7 @@ class ConcreteDropout(nn.Module):
         t: float, weight (to be applied before the sigmoid)
     """
 
-    def __init__(self, input_shape, init_values=0.5, t=0.1):
+    def __init__(self, input_shape, init_values=0.3, t=0.1):
         super().__init__()
 
         self.input_shape = input_shape
@@ -29,10 +28,28 @@ class ConcreteDropout(nn.Module):
         self.t = t
 
     def forward(self, input):
-        mask = F.sigmoid((1/self.t) * (torch.log(self.parameter_mask) - torch.log(1 - self.parameter_mask) +
-                                       torch.log(torch.empty(self.input_shape).uniform_()) -
-                                       torch.log(1 - torch.empty(self.input_shape).uniform_(to=1))))
+        # sigmoid prevents nan when we take a log of the mask
+        p = torch.sigmoid(self.parameter_mask)
+        uniform_distribution = torch.empty(self.input_shape).uniform_()
+
+        # +1e-7 to prevent nans if p or uniform_distribution = 0
+        mask = torch.sigmoid((1/self.t) * (torch.log(p + 1e-7) - torch.log(1 - p + 1e-7) +
+                                           torch.log(uniform_distribution + 1e-7) -
+                                           torch.log(1 - uniform_distribution + 1e-7)))
         if self.training:
             return mask * input, mask
         else:
             return mask * input
+
+
+class ConcreteRegularizer(nn.Module):
+    """A regularizer for concrete dropout
+    """
+    def __init__(self, lam):
+        super().__init__()
+        self.lam = lam
+
+    def forward(self, mask):
+        """Apply the regularizing weights to concrete dropout
+        """
+        return self.lam * torch.sum(mask, tuple(range(mask.ndimension())))
