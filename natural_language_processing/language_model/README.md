@@ -35,7 +35,7 @@ Variational dropout is used for the embedding layer.
 
 ## References
 
-1. [Universal Language Model Fine-tuning for Text Classification](https://arxiv.org/abs/1801.06146)<a name="3"></a>
+1. [Universal Language Model Fine-tuning for Text Classification](https://arxiv.org/abs/1801.06146)<a name="1"></a>
 
 2. [Regularizing and Optimizing LSTM language models](https://arxiv.org/abs/1708.02182)<a name="2"></a>
 
