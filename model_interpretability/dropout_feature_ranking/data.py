@@ -12,7 +12,7 @@ from itertools import repeat, islice
 class PhysioNetDataset(object):
 
     def __init__(self, data_dir=Path('PhysioNet/set-a'), outcomes_dir=Path('PhysioNet/Outcomes-a.txt'),
-                 mask=None, device=torch.device("cpu"), normalizing_dict=None,
+                 instance_mask=None, feature_mask=None, device=torch.device("cpu"),
                  processes=6, parallelism=4, chunks=1, binary_features=False):
         self.device = device
         self.data_dir = data_dir
@@ -21,23 +21,22 @@ class PhysioNetDataset(object):
 
         # load up all the filenames (patient ids), and sort them
         files = np.array(sorted([x for x in data_dir.iterdir()]))
-        if mask is not None:
-            self.files = files[mask]
+        if instance_mask is not None:
+            self.files = files[instance_mask]
         else:
             self.files = files
 
-        if normalizing_dict is None:
-            # finally, we need to map all the variables to an index
-            parameters = self.get_values()
+        # finally, we need to map all the variables to an index
+        parameters = self.get_values(feature_mask)
 
-            normalizing_dict = {}
-            for idx, dict_vals in enumerate(parameters.items()):
-                key, vals = dict_vals
-                normalizing_dict[key] = {
-                    'mean': np.mean(vals),
-                    'std': np.std(vals),
-                    'idx': idx
-                }
+        normalizing_dict = {}
+        for idx, dict_vals in enumerate(parameters.items()):
+            key, vals = dict_vals
+            normalizing_dict[key] = {
+                'mean': np.mean(vals),
+                'std': np.std(vals),
+                'idx': idx
+            }
         self.normalizing_dict = normalizing_dict
 
         # for multiprocessing
@@ -65,7 +64,7 @@ class PhysioNetDataset(object):
     def get_normalizing_dict(self):
         return self.normalizing_dict
 
-    def get_values(self):
+    def get_values(self, feature_mask):
         """Iterates through all the files, and accumulates
         all the variables, and their values, to calculate their mean and
         standard deviations
@@ -75,8 +74,12 @@ class PhysioNetDataset(object):
         for file in self.files:
             file_csv = pd.read_csv(file)
             for row in file_csv.itertuples():
-                if row.Parameter not in ignore:
-                    parameters[row.Parameter].append(row.Value)
+                if feature_mask is not None:
+                    if row.Parameter in feature_mask:
+                        parameters[row.Parameter].append(row.Value)
+                else:
+                    if row.Parameter not in ignore:
+                        parameters[row.Parameter].append(row.Value)
         return parameters
 
     def __len__(self):
@@ -125,7 +128,7 @@ def process_record(filepath, outcomes, normalizing_dict, device, binary_features
     # split the time into hours
     file_csv['hour'] = file_csv['Time'].apply(lambda x: int(x.split(':')[0]))
 
-    num_features = 74 if binary_features else 37
+    num_features = len(normalizing_dict) * 2 if binary_features else len(normalizing_dict)
     output_array = torch.zeros((48, num_features), device=device)
     for i in range(48):
         hourly_data = file_csv[file_csv.hour == i]
@@ -136,6 +139,6 @@ def process_record(filepath, outcomes, normalizing_dict, device, binary_features
                                             (vals['std'] if vals['std'] != 0 else 1)
                 output_array[i, vals['idx']] = normalized_hourly_average
                 if binary_features:
-                    output_array[i, vals['idx'] + 37] = 1
+                    output_array[i, vals['idx'] + len(normalizing_dict)] = 1
     # map() flattens the results; a 2d list prevents this
     return [[output_array, torch.tensor(outcome, device=device)]]

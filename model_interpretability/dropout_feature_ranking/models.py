@@ -10,7 +10,7 @@ class PhysioNet(nn.Module):
 
     Default values taken from the dropout feature ranking paper
     """
-    def __init__(self, input_size=37, hidden_size=64):
+    def __init__(self, input_size=74, hidden_size=64):
         super().__init__()
         self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size)
         self.regressor = nn.Linear(in_features=hidden_size, out_features=1)

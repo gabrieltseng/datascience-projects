@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 from collections import defaultdict
+import argparse
 import os
 import itertools
 import pickle
@@ -113,7 +114,7 @@ def predict(model, concrete_dropout, predict_dataset):
     return loss, pred_roc
 
 
-def feature_ranking(mask, normalizing_dict, binary=False):
+def feature_ranking(mask, normalizing_dict, binary=True):
     """if binary, expect 2*len(normalizing_dict) features.
     In this case, feature importance will be the mean of the binary
     and non-binary feature
@@ -129,22 +130,29 @@ def feature_ranking(mask, normalizing_dict, binary=False):
     return pd.DataFrame(importance_dict)
 
 
-def preprocess_data(data_path):
+def preprocess_data(data_path, masking_features):
     # delete all files
-    for file in ['physio_input.npy', 'physio_outcomes.npy', 'physio_normalizing_dict.pkl']:
+    for file in ['raw_physio_input.npy', 'raw_physio_outcomes.npy',
+                 'raw_physio_normalizing_dict.pkl']:
         try: os.remove(data_path/file)
         except FileNotFoundError: continue
 
-    dataset = PhysioNetDataset()
+    # make a folder if it doesn't already exist
+    if not data_path.exists():
+        data_path.mkdir()
+
+    dataset = PhysioNetDataset(binary_features=masking_features)
     input_array, outcomes = dataset.preprocess_all()
+    # input_array = outcomes = torch.tensor([1, 2, 3])
     np.save(data_path/'physio_input.npy', input_array.numpy())
     np.save(data_path/'physio_outcomes.npy', outcomes.numpy())
     normalizing_dict = dataset.get_normalizing_dict()
+    # normalizing_dict = {1: 2}
     with open(data_path/'physio_normalizing_dict.pkl', 'wb') as f:
         pickle.dump(normalizing_dict, f)
 
 
-def train_val_test_split(X, Y, val_size=0.2, test_size=0.1, return_tensors=True):
+def train_val_test_split(X, Y, val_size=0.1, test_size=0.1, return_tensors=True):
     """Split the input X and Y arrays into train, val and test sets.
     Stratify according to the Y labels.
     """
@@ -170,16 +178,22 @@ def train_val_test_split(X, Y, val_size=0.2, test_size=0.1, return_tensors=True)
         return (X[train_idx], Y[train_idx]), (X[val_idx], Y[val_idx]), (X[test_idx], Y[test_idx])
 
 
-def main(data_path=Path('.')):
-    # check the input data exists; if it doesn't, generate it
-    for file in ['physio_input.npy', 'physio_outcomes.npy', 'physio_normalizing_dict.pkl']:
-        if not (data_path/file).exists():
-            print('Missing data! Preprocessing')
-            preprocess_data(data_path)
+def get_mask(data_path=Path('data'), masking_features=False):
 
-    X = np.load(data_path/'physio_input.npy')
-    Y = np.load(data_path/'physio_outcomes.npy')
-    with open(data_path/'physio_normalizing_dict.pkl', 'rb') as f:
+    if not data_path.exists():
+        data_path.mkdir()
+
+    folder = 'with_masking' if masking_features else 'without_masking'
+    # check the input data exists; if it doesn't, generate it
+    for file in ['physio_input.npy', 'physio_outcomes.npy',
+                 'physio_normalizing_dict.pkl']:
+        if not (data_path/folder/file).exists():
+            print(f'Missing {data_path/folder/file}! Preprocessing')
+            preprocess_data(data_path/folder, masking_features)
+
+    X = np.load(data_path/folder/'physio_input.npy')
+    Y = np.load(data_path/folder/'physio_outcomes.npy')
+    with open(data_path/folder/'physio_normalizing_dict.pkl', 'rb') as f:
         normalizing_dict = pickle.load(f)
 
     train_set, val_set, test_set = train_val_test_split(X, Y)
@@ -188,7 +202,7 @@ def main(data_path=Path('.')):
     test_dataset = TensorDataset(*test_set)
 
     # define the model
-    model = PhysioNet()
+    model = PhysioNet(input_size=len(normalizing_dict) * 2 if masking_features else len(normalizing_dict))
 
     # take [2:] of the shape to only add a mask across the input features, not
     # across the time (so the mask will have shape (74,), not (48, 74))
@@ -198,17 +212,25 @@ def main(data_path=Path('.')):
     model_optimizer = torch.optim.Adam(model.parameters())
     dropout_optimizer = torch.optim.Adam(concrete_dropout.parameters())
 
-    model, dropout = train(model, Path('model.pickle'), concrete_dropout, Path('concrete_dropout.pickle'),
-                           regularizer, train_dataset, val_dataset, model_optimizer, dropout_optimizer,
-                           patience=2)
+    model, dropout = train(model, data_path/folder/'dropout_model.pickle', concrete_dropout,
+                           data_path/folder/'concrete_dropout.pickle', regularizer, train_dataset, val_dataset,
+                           model_optimizer, dropout_optimizer, patience=2)
 
     loss, pred_roc = predict(model, dropout, test_dataset)
     print('Prediction loss: {:.6g}, AUC ROC: {:.6g}'.format(loss, pred_roc))
 
     mask = dropout.parameter_mask.data.numpy()
     importance_dict = pd.DataFrame(feature_ranking(mask, normalizing_dict))
-    importance_dict.to_csv('importance_dict.csv', index=False)
+    importance_dict.to_csv(data_path/folder/'importance_dict.csv', index=False)
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--data-path', default=None)
+    parser.add_argument('--masking-features', action='store_true')
+    args = parser.parse_args()
+    if args.data_path:
+        get_mask(Path(args.data_path), args.masking_features)
+    else:
+        get_mask(Path('data'), args.masking_features)
