@@ -12,7 +12,7 @@ class PhysioNet(nn.Module):
     """
     def __init__(self, input_size=74, hidden_size=64):
         super().__init__()
-        self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size)
+        self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size, batch_first=True)
         self.regressor = nn.Linear(in_features=hidden_size, out_features=1)
         self.dropout_1 = nn.Dropout(0.3)
         self.dropout_2 = nn.Dropout(0.5)

@@ -1,4 +1,4 @@
-from get_mask import get_mask, train_val_test_split
+from get_mask import get_mask, train_val_test_split, preprocess_data as org_preprocessor
 from data import PhysioNetDataset
 from models import PhysioNet
 
@@ -103,13 +103,34 @@ def preprocess_data(data_path, features, masking_features):
     if not data_path.exists():
         data_path.mkdir()
 
-    dataset = PhysioNetDataset(feature_mask=features, binary_features=masking_features)
-    input_array, outcomes = dataset.preprocess_all()
-    np.save(data_path/'physio_input.npy', input_array.numpy())
-    np.save(data_path/'physio_outcomes.npy', outcomes.numpy())
-    normalizing_dict = dataset.get_normalizing_dict()
+    # get the original inputs
+    org_data_path = data_path.parents[0]
+    # check the input data exists; if it doesn't, generate it
+    for file in ['physio_input.npy', 'physio_outcomes.npy',
+                 'physio_normalizing_dict.pkl']:
+        if not (org_data_path/file).exists():
+            print(f'Missing {org_data_path/file}! Preprocessing')
+            org_preprocessor(org_data_path, masking_features)
+
+    org_input = np.load(org_data_path/'physio_input.npy')
+    org_outcomes = np.load(org_data_path/'physio_outcomes.npy')
+    with open(org_data_path/'physio_normalizing_dict.pkl', 'rb') as f:
+        org_dict = pickle.load(f)
+
+    # we can directly save the outputs
+    np.save(data_path/'physio_outcomes.npy', org_outcomes)
+
+    # now, we want to select the indices of the features we want
+    relevant_indices = [org_dict[feat]['idx'] for feat in features]
+    if masking_features:
+        masking_indices = [idx + len(org_dict) for idx in relevant_indices]
+        relevant_indices.extend(masking_indices)
+    new_dict = {feat: {'idx': idx} for idx, feat in enumerate(features)}
+
+    new_input = org_input[:, :, relevant_indices]
+    np.save(data_path/'physio_input.npy', new_input)
     with open(data_path/'physio_normalizing_dict.pkl', 'wb') as f:
-        pickle.dump(normalizing_dict, f)
+        pickle.dump(new_dict, f)
 
 
 def get_features(importance_dict_path, k):

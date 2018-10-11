@@ -220,7 +220,7 @@ def get_mask(data_path=Path('data'), masking_features=False):
     print('Prediction loss: {:.6g}, AUC ROC: {:.6g}'.format(loss, pred_roc))
 
     mask = dropout.parameter_mask.data.numpy()
-    importance_dict = pd.DataFrame(feature_ranking(mask, normalizing_dict))
+    importance_dict = pd.DataFrame(feature_ranking(mask, normalizing_dict, masking_features))
     importance_dict.to_csv(data_path/folder/'importance_dict.csv', index=False)
 
 
