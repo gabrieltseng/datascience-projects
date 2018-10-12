@@ -37,9 +37,9 @@ class ConcreteDropout(nn.Module):
                                            torch.log(uniform_distribution + 1e-7) -
                                            torch.log(1 - uniform_distribution + 1e-7)))
         if self.training:
-            return mask * input, mask
+            return (1 - mask) * input, mask
         else:
-            return mask * input
+            return (1 - mask) * input
 
 
 class ConcreteRegularizer(nn.Module):

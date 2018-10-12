@@ -92,9 +92,8 @@ def predict(model, predict_dataset):
     return loss, pred_roc
 
 
-def preprocess_data(data_path, features, masking_features):
+def preprocess_data(data_path, features, masking_features, k):
     # delete all files
-    k = len(features)
     for file in ['physio_input.npy', 'physio_outcomes.npy',
                  'physio_normalizing_dict.pkl']:
         try: os.remove(data_path/file)
@@ -104,7 +103,7 @@ def preprocess_data(data_path, features, masking_features):
         data_path.mkdir()
 
     # get the original inputs
-    org_data_path = data_path.parents[0]
+    org_data_path = data_path.parents[1]
     # check the input data exists; if it doesn't, generate it
     for file in ['physio_input.npy', 'physio_outcomes.npy',
                  'physio_normalizing_dict.pkl']:
@@ -119,6 +118,11 @@ def preprocess_data(data_path, features, masking_features):
 
     # we can directly save the outputs
     np.save(data_path/'physio_outcomes.npy', org_outcomes)
+
+    if features is None:
+        # if features is None, we need to take a random subset of the features
+        all_features = [feat for feat in org_dict]
+        features = np.random.choice(all_features, size=k, replace=False)
 
     # now, we want to select the indices of the features we want
     relevant_indices = [org_dict[feat]['idx'] for feat in features]
@@ -139,28 +143,46 @@ def get_features(importance_dict_path, k):
     return importance_dict.features.values[:k]
 
 
-def test_mask(data_path=Path('data'), k=20, masking_features=False):
+def test_topk(data_path=Path('data'), k=20, masking_features=False, random_k=False):
+    """
+    If random_k is true, instead of testing a mask, the model will be trained on a randomly
+    selected subset of k features
+    """
     mask_folder = 'with_masking' if masking_features else 'without_masking'
 
+    # if this is the first time the method is run, we will need to set up the folder
+    # structure for all the files
     if not data_path.exists():
         data_path.mkdir()
-
-    # check the importance dict exists
-    if not (data_path/mask_folder/'importance_dict.csv').exists():
-        print("Mask missing! Running get_mask")
-        get_mask(data_path, masking_features)
+    if not (data_path/mask_folder).exists():
+        (data_path/mask_folder).mkdir()
 
     topk_folder = f'top_{k}'
+    if not (data_path/mask_folder/topk_folder).exists():
+        (data_path/mask_folder/topk_folder).mkdir()
+
+    if not random_k:
+        selection_method = 'dropout'
+        # check the importance dict exists
+        if not (data_path/mask_folder/'importance_dict.csv').exists():
+            print("Mask missing! Running get_mask")
+            get_mask(data_path, masking_features)
+    else:
+        selection_method = 'random'
+    array_folder_path = data_path/mask_folder/topk_folder/selection_method
     # check the input data exists; if it doesn't, generate it
     for file in ['physio_input.npy', 'physio_outcomes.npy',
                  'physio_normalizing_dict.pkl']:
-        if not (data_path/mask_folder/topk_folder/file).exists():
-            print(f'Missing {data_path/mask_folder/topk_folder/file}! Preprocessing')
-            features = get_features(data_path/mask_folder/'importance_dict.csv', k)
-            preprocess_data(data_path/mask_folder/topk_folder, features, masking_features)
+        if not (array_folder_path/file).exists():
+            print(f'Missing {array_folder_path/file}! Preprocessing')
+            if not random_k:
+                features = get_features(data_path/mask_folder/'importance_dict.csv', k)
+            else:
+                features = None
+            preprocess_data(array_folder_path, features, masking_features, k)
 
-    X = np.load(data_path/mask_folder/topk_folder/'physio_input.npy')
-    Y = np.load(data_path/mask_folder/topk_folder/'physio_outcomes.npy')
+    X = np.load(array_folder_path/'physio_input.npy')
+    Y = np.load(array_folder_path/'physio_outcomes.npy')
 
     train_set, val_set, test_set = train_val_test_split(X, Y)
     train_dataset = TensorDataset(*train_set)
@@ -172,11 +194,13 @@ def test_mask(data_path=Path('data'), k=20, masking_features=False):
 
     model_optimizer = torch.optim.Adam(model.parameters())
 
-    model = train(model, data_path/mask_folder/topk_folder/'model.pickle', train_dataset, val_dataset,
+    model = train(model, array_folder_path/'model.pickle', train_dataset, val_dataset,
                   model_optimizer, patience=2)
 
     loss, pred_roc = predict(model, test_dataset)
     print('Prediction loss: {:.6g}, AUC ROC: {:.6g}'.format(loss, pred_roc))
+
+    return pred_roc
 
 
 if __name__ == '__main__':

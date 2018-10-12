@@ -116,7 +116,7 @@ def predict(model, concrete_dropout, predict_dataset):
 
 def feature_ranking(mask, normalizing_dict, binary=True):
     """if binary, expect 2*len(normalizing_dict) features.
-    In this case, feature importance will be the mean of the binary
+    In this case, feature importance will be the sum of the binary
     and non-binary feature
     """
     importance_dict = defaultdict(list)
