@@ -11,7 +11,7 @@ from itertools import repeat, islice
 
 class PhysioNetDataset(object):
 
-    def __init__(self, data_dir=Path('PhysioNet/all-sets'), outcomes_dir=Path('PhysioNet/all-Outcomes.txt'),
+    def __init__(self, data_dir=Path('PhysioNet/set-a'), outcomes_dir=Path('PhysioNet/Outcomes-a.txt'),
                  instance_mask=None, feature_mask=None, device=torch.device("cpu"),
                  processes=6, parallelism=4, chunks=1, binary_features=False):
         self.device = device

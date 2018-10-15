@@ -18,11 +18,27 @@ from models import PhysioNet
 from data import PhysioNetDataset
 
 
-def train(model, model_path, concrete_dropout, concrete_dropout_path,
-          dropout_regularizer, train_dataset, val_dataset, model_optimizer,
-          dropout_optimizer, patience, batch_size=64, num_epochs=None, annealing=True):
+def train(model_path, concrete_dropout_path, X, Y, normalizing_dict,
+          masking_features, patience, batch_size=64, num_epochs=None, annealing=True):
     """ Training loop
     """
+
+    train_set, val_set, test_set = train_val_test_split(X, Y)
+    train_dataset = TensorDataset(*train_set)
+    val_dataset = TensorDataset(*val_set)
+    test_dataset = TensorDataset(*test_set)
+
+    # define the model
+    model = PhysioNet(input_size=len(normalizing_dict) * 2 if masking_features else len(normalizing_dict))
+
+    # take [2:] of the shape to only add a mask across the input features, not
+    # across the time (so the mask will have shape (74,), not (48, 74))
+    concrete_dropout = ConcreteDropout(input_shape=train_set[0].shape[2:])
+    regularizer = ConcreteRegularizer(lam=0.001)
+
+    model_optimizer = torch.optim.Adam(model.parameters())
+    dropout_optimizer = torch.optim.Adam(concrete_dropout.parameters())
+
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
@@ -52,7 +68,7 @@ def train(model, model_path, concrete_dropout, concrete_dropout_path,
             outputs = model(dropped_inputs)
 
             loss = F.binary_cross_entropy(outputs, targets.unsqueeze(1))
-            reg = dropout_regularizer(mask)
+            reg = regularizer(mask)
             total_loss = loss + reg
             total_loss.backward()
             train_loss += loss.data.item()
@@ -92,7 +108,7 @@ def train(model, model_path, concrete_dropout, concrete_dropout_path,
     # Load the weights of the best model
     model.load_state_dict(torch.load(model_path))
     concrete_dropout.load_state_dict(torch.load(concrete_dropout_path))
-    return model, concrete_dropout
+    return model, concrete_dropout, test_dataset
 
 
 def predict(model, concrete_dropout, predict_dataset):
@@ -178,7 +194,7 @@ def train_val_test_split(X, Y, val_size=0.1, test_size=0.1, return_tensors=True)
         return (X[train_idx], Y[train_idx]), (X[val_idx], Y[val_idx]), (X[test_idx], Y[test_idx])
 
 
-def get_mask(data_path=Path('data'), masking_features=False):
+def get_mask(data_path=Path('data'), masking_features=False, num_iterations=40):
 
     if not data_path.exists():
         data_path.mkdir()
@@ -196,30 +212,22 @@ def get_mask(data_path=Path('data'), masking_features=False):
     with open(data_path/folder/'physio_normalizing_dict.pkl', 'rb') as f:
         normalizing_dict = pickle.load(f)
 
-    train_set, val_set, test_set = train_val_test_split(X, Y)
-    train_dataset = TensorDataset(*train_set)
-    val_dataset = TensorDataset(*val_set)
-    test_dataset = TensorDataset(*test_set)
+    for i in range(num_iterations):
+        print(f'Iteration number: {i}')
+        model, dropout, test_dataset = train(data_path/folder/f'dropout_model_{i}.pickle',
+                                             data_path/folder/f'concrete_dropout_{i}.pickle', X, Y,
+                                             normalizing_dict, masking_features, patience=2)
 
-    # define the model
-    model = PhysioNet(input_size=len(normalizing_dict) * 2 if masking_features else len(normalizing_dict))
+        loss, pred_roc = predict(model, dropout, test_dataset)
+        print('Prediction loss: {:.6g}, AUC ROC: {:.6g}'.format(loss, pred_roc))
 
-    # take [2:] of the shape to only add a mask across the input features, not
-    # across the time (so the mask will have shape (74,), not (48, 74))
-    concrete_dropout = ConcreteDropout(input_shape=train_set[0].shape[2:])
-    regularizer = ConcreteRegularizer(lam=0.001)
+        if i == 0:
+            mask = dropout.parameter_mask.data.numpy()
+        else:
+            mask = np.add(mask, dropout.parameter_mask.data.numpy())
 
-    model_optimizer = torch.optim.Adam(model.parameters())
-    dropout_optimizer = torch.optim.Adam(concrete_dropout.parameters())
-
-    model, dropout = train(model, data_path/folder/'dropout_model.pickle', concrete_dropout,
-                           data_path/folder/'concrete_dropout.pickle', regularizer, train_dataset, val_dataset,
-                           model_optimizer, dropout_optimizer, patience=2)
-
-    loss, pred_roc = predict(model, dropout, test_dataset)
-    print('Prediction loss: {:.6g}, AUC ROC: {:.6g}'.format(loss, pred_roc))
-
-    mask = dropout.parameter_mask.data.numpy()
+    # take the mean of all the masks
+    mask = mask / num_iterations
     importance_dict = pd.DataFrame(feature_ranking(mask, normalizing_dict, masking_features))
     importance_dict.to_csv(data_path/folder/'importance_dict.csv', index=False)
 

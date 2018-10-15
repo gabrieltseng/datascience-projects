@@ -16,10 +16,20 @@ import argparse
 from sklearn.metrics import roc_auc_score
 
 
-def train(model, model_path, train_dataset, val_dataset, optimizer, patience, num_epochs=None,
-          batch_size=64):
+def train(model_path, X, Y, patience, masking_features, k,
+          num_epochs=None, batch_size=64):
     """ Training loop
         """
+
+    train_set, val_set, test_set = train_val_test_split(X, Y)
+    train_dataset = TensorDataset(*train_set)
+    val_dataset = TensorDataset(*val_set)
+    test_dataset = TensorDataset(*test_set)
+
+    # define the model
+    model = PhysioNet(input_size=2 * k if masking_features else k)
+
+    optimizer = torch.optim.Adam(model.parameters())
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
@@ -71,7 +81,7 @@ def train(model, model_path, train_dataset, val_dataset, optimizer, patience, nu
 
     # Load the weights of the best model
     model.load_state_dict(torch.load(model_path))
-    return model
+    return model, test_dataset
 
 
 def predict(model, predict_dataset):
@@ -143,7 +153,7 @@ def get_features(importance_dict_path, k):
     return importance_dict.features.values[:k]
 
 
-def test_topk(data_path=Path('data'), k=20, masking_features=False, random_k=False):
+def test_topk(data_path=Path('data'), k=20, masking_features=False, random_k=False, num_iterations=40):
     """
     If random_k is true, instead of testing a mask, the model will be trained on a randomly
     selected subset of k features
@@ -184,23 +194,20 @@ def test_topk(data_path=Path('data'), k=20, masking_features=False, random_k=Fal
     X = np.load(array_folder_path/'physio_input.npy')
     Y = np.load(array_folder_path/'physio_outcomes.npy')
 
-    train_set, val_set, test_set = train_val_test_split(X, Y)
-    train_dataset = TensorDataset(*train_set)
-    val_dataset = TensorDataset(*val_set)
-    test_dataset = TensorDataset(*test_set)
+    all_rocs = []
+    for i in range(num_iterations):
+        print(f'Iteration {i}')
+        model, test_dataset = train(array_folder_path/f'model_{i}.pickle', X, Y, patience=2,
+                                    masking_features=masking_features, k=k)
 
-    # define the model
-    model = PhysioNet(input_size=2 * k if masking_features else k)
+        loss, pred_roc = predict(model, test_dataset)
+        all_rocs.append(pred_roc)
+    pred_roc_mean = np.mean(all_rocs)
+    pred_roc_std = np.std(all_rocs)
+    print('Prediction loss: {:.6g}, mean AUC ROC: {:.6g} (std: {:.6g})'.format(loss, pred_roc_mean,
+                                                                               pred_roc_std))
 
-    model_optimizer = torch.optim.Adam(model.parameters())
-
-    model = train(model, array_folder_path/'model.pickle', train_dataset, val_dataset,
-                  model_optimizer, patience=2)
-
-    loss, pred_roc = predict(model, test_dataset)
-    print('Prediction loss: {:.6g}, AUC ROC: {:.6g}'.format(loss, pred_roc))
-
-    return pred_roc
+    return pred_roc_mean
 
 
 if __name__ == '__main__':
@@ -211,6 +218,6 @@ if __name__ == '__main__':
     parser.add_argument('--masking-features', action='store_true')
     args = parser.parse_args()
     if args.data_path:
-        test_mask(Path(args.data_path), int(args.k), args.masking_features)
+        test_topk(Path(args.data_path), int(args.k), args.masking_features)
     else:
-        test_mask(Path('data'), int(args.k), args.masking_features)
+        test_topk(Path('data'), int(args.k), args.masking_features)
