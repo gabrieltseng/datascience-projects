@@ -7,12 +7,12 @@ from torch.nn.utils.rnn import pad_sequence
 from ..utils import chunk
 
 
-class ToxicDataLoader(object):
+class IMDBDataLoader(object):
     """
-    DataLoader for toxic comments
+    DataLoader for IMDB reviews
 
     Args:
-        comments: numpy array or list of tokenized comment intergers
+        reviews: numpy array or list of tokenized review intergers
         labels: numpy array or list of labels
         batch_size: how many samples per batch to load
         pad_idx: the index of padded values
@@ -20,9 +20,9 @@ class ToxicDataLoader(object):
             as well as shuffling. If False, just returns the comments sorted by
             length.
     """
-    def __init__(self, comments, labels, batch_size, pad_idx, sortish=True,
+    def __init__(self, reviews, labels, batch_size, pad_idx, sortish=True,
                  device=torch.device("cpu")):
-        self.comments = comments
+        self.reviews = reviews
         self.labels = labels
         self.pad_idx = pad_idx
         self.batch_size = batch_size
@@ -36,19 +36,19 @@ class ToxicDataLoader(object):
             return _SortIter(self)
 
     def __len__(self):
-        return int(len(self.comments) / self.batch_size)
+        return int(len(self.reviews) / self.batch_size)
 
 
 class SorterBase(object):
 
     def __init__(self, loader):
-        self.comments = loader.comments
+        self.reviews = loader.reviews
         self.labels = loader.labels
         self.pad_idx = loader.pad_idx
         self.batch_size = loader.batch_size
         self.device = loader.device
         self.idx = 0
-        self.max_idx = len(loader.comments) - 1
+        self.max_idx = len(loader.reviews) - 1
 
         sorted_comments, sorted_labels = self._order()
         self.sorted_comments = sorted_comments
@@ -87,8 +87,8 @@ class _SortishIter(SorterBase):
     """
     def _order(self):
         # first, shuffle everything
-        comments, labels = shuffle(self.comments, self.labels)
-        data = zip(comments, labels)
+        reviews, labels = shuffle(self.reviews, self.labels)
+        data = zip(reviews, labels)
         ishsorted_comments = []
         ishsorted_labels = []
         # then, chunk them
@@ -106,19 +106,8 @@ class _SortIter(SorterBase):
     Just sorts the comments and labels. Useful for the validation set.
     """
     def _order(self):
-        data = zip(self.comments, self.labels)
+        data = zip(self.reviews, self.labels)
         com, lab = map(list, zip(*sorted(data, key=lambda x: len(x[0]),
                        reverse=True)))
         com = [torch.tensor(x, device=self.device) for x in com]
         return com, torch.tensor(lab, device=self.device)
-
-
-def flatten(comments, labels):
-    """
-    Since Kaggle's evaluation is column-wise, the loss should be too.
-    """
-    num_labels = labels.shape[1]
-    comments = np.repeat(comments, num_labels)
-    labels = labels.flatten()
-
-    return comments, labels

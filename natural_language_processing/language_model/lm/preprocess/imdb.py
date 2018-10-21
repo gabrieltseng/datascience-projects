@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 from itertools import repeat
 from concurrent.futures import ProcessPoolExecutor
@@ -10,49 +9,39 @@ from .base import Tokenizer, BOS_TOKEN
 from ..utils import chunk
 
 
-class ToxicTokenizer(Tokenizer):
+class IMDBTokenizer(Tokenizer):
     """
-    Loads and tokenizes the toxic tokenizer dataset
+    Loads and tokenizes the IMDB dataset
     """
     dimension = 2
+    sentiment2int = {'pos': 1, 'neg': 0}
 
-    def __init__(self, filepaths, label_filepaths=None, processes=6, parallelism=4,
+    def __init__(self, filepaths, processes=6, parallelism=4,
                  chunks=1000):
-        self.label_filepaths = label_filepaths
         super().__init__(filepaths, processes, parallelism, chunks)
 
     def read_articles(self):
-        df = pd.DataFrame()
-        for file in self.filepaths:
-            df = pd.concat([df, pd.read_csv(file)])
+        """
+        Returns a list of articles
+        """
 
-        if self.label_filepaths:
-            labels_df = pd.DataFrame()
-            for label_file in self.label_filepaths:
-                labels_df = pd.concat([labels_df, pd.read_csv(label_file)])
-
-            df = df.join(labels_df.set_index('id'), on='id')
-
-        # make sure we have the labels
-        assert 'toxic' in df.columns, 'Labels not loaded; try setting label_filepaths'
-
-        print('Loaded {} articles'.format(len(df.comment_text.values)))
-
-        label_cols = [col for col in df.columns if col not in ('id', 'comment_text')]
-        self.labels = df[label_cols].values
-        self.header2index = {idx: col for idx, col in enumerate(label_cols)}
-        self.ids = df.id.values
-
-        return df.comment_text.values
-
-    def get_articles(self):
-        return self.a
-
-    def get_ids(self):
-        return self.ids
+        # Expect the pos to be in filepath/pos, and neg to be in filepath/neg
+        reviews = []
+        labels = []
+        for filepath in self.filepaths:
+            for sentiment in ['pos', 'neg']:
+                sentiment_filepath = filepath/sentiment
+                for file in sentiment_filepath.glob('*.txt'):
+                    with file.open() as f:
+                        data = f.read()
+                        labels.append(self.sentiment2int[sentiment])
+                        reviews.append(data)
+        print('Loaded {} articles'.format(len(reviews)))
+        self.labels = np.asarray(labels)
+        return reviews
 
     def get_labels(self):
-        return self.labels, self.header2index
+        return self.labels
 
     def tokenize(self):
         """
