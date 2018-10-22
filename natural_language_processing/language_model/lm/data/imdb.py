@@ -19,15 +19,17 @@ class IMDBDataLoader(object):
         sortish: if True, uses the sort-ish iterator. This allows some sorting,
             as well as shuffling. If False, just returns the comments sorted by
             length.
+        nax_seq_length: Truncate sequences to be this length
     """
     def __init__(self, reviews, labels, batch_size, pad_idx, sortish=True,
-                 device=torch.device("cpu")):
+                 device=torch.device("cpu"), max_seq_length=None):
         self.reviews = reviews
         self.labels = labels
         self.pad_idx = pad_idx
         self.batch_size = batch_size
         self.sortish = sortish
         self.device = device
+        self.max_seq_length = max_seq_length
 
     def __iter__(self):
         if self.sortish:
@@ -49,6 +51,7 @@ class SorterBase(object):
         self.device = loader.device
         self.idx = 0
         self.max_idx = len(loader.reviews) - 1
+        self.max_seq_length = loader.max_seq_length
 
         sorted_comments, sorted_labels = self._order()
         self.sorted_comments = sorted_comments
@@ -68,6 +71,8 @@ class SorterBase(object):
             max_idx = self.idx + self.batch_size
 
             x = self.sorted_comments[self.idx: max_idx]
+            if self.max_seq_length:
+                x = [l[:self.max_seq_length] for l in x]
             y = self.sorted_labels[self.idx: max_idx]
 
             # pad
@@ -98,7 +103,7 @@ class _SortishIter(SorterBase):
                                    reverse=True))
             ishsorted_comments.extend([torch.tensor(x, device=self.device) for x in com])
             ishsorted_labels.extend(lab)
-        return ishsorted_comments, torch.tensor(np.array(ishsorted_labels), device=self.device)
+        return ishsorted_comments, torch.tensor(ishsorted_labels, device=self.device)
 
 
 class _SortIter(SorterBase):

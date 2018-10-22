@@ -31,6 +31,12 @@ class WDConv(nn.Module):
     def init_weights(self):
         self.conv.weight.data.normal_(0, 0.01)
 
+    def cleanup(self):
+        """Removes the weight parameter, so that the state dict can be used
+        to load other models
+        """
+        del self.conv._parameters['weight']
+
     def forward(self, x):
         raw_weights = self.raw_weight
         weight_mask = nn.functional.dropout(raw_weights, p=self.dropout, training=self.training)
@@ -59,6 +65,10 @@ class TCNBlock(nn.Module):
                                        kernel_size, stride=stride, padding=self.padding,
                                        dilation=dilation, dropout=dropout),
                                        name='raw_weight') for i in range(1, num_layers + 1)])
+
+    def cleanup(self):
+        for conv in self.wd_convs:
+            conv.cleanup()
 
     def forward(self, x):
 
@@ -105,6 +115,11 @@ class ConvLM(nn.Module):
         # tie weights
         self.decoder.weight = self.embedding.embedding.raw_weight
         self.decoder.bias.data.fill_(0)
+
+    def cleanup(self):
+        self.embedding.cleanup()
+        for convblock in self.convblocks:
+            convblock.cleanup()
 
     def forward(self, x):
 

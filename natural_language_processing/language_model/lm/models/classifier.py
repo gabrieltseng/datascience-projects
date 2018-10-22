@@ -9,7 +9,7 @@ class LanguageClassifier(nn.Module):
     """
 
     def __init__(self, language_base, base_output_dim=400, num_layers=3,
-                 num_classes=6, dropout=0.1):
+                 num_classes=1, dropout=0.1):
         super().__init__()
 
         self.pretrained = language_base
@@ -37,6 +37,7 @@ class LanguageClassifier(nn.Module):
         for i in range(self.num_layers):
             x = self.dropout(getattr(self, 'finetune_linear_{}'.format(i))(x))
             x = getattr(self, 'finetune_batchnorm_{}'.format(i))(x)
-            x = F.relu(x)
+            if i < (self.num_layers -1):
+                x = F.relu(x)
         if return_hidden: return x, new_hidden
         return x

@@ -27,6 +27,9 @@ class WDLSTM(nn.Module):
         del self.lstm._parameters['weight_hh_l0']
         self.lstm.register_parameter('raw_weight_hh_l0', raw_weights)
 
+    def cleanup(self):
+        del self.lstm._parameters['weight_hh_l0']
+
     def fix_weird_pytorch_error(*args, **kwargs):
         # handling weird pytorch error
         return
@@ -84,6 +87,9 @@ class VDEmbedding(nn.Module):
         self.embedding.register_parameter('raw_weight', raw_weights)
 
         self.vocab_size = vocab_size
+
+    def cleanup(self):
+        del self.embedding._parameters['weight']
 
     def init_weights(self):
         # embedding weights are uniformly initialized between -0.1 and 0.1
@@ -156,6 +162,11 @@ class RecLM(nn.Module):
         # finally, variational dropout
         self.emb_drop = VariationalDropout(p=var_dropout_emb)
         self.final_rnn_drop = VariationalDropout(p=var_dropout_rnn)
+
+    def cleanup(self):
+        self.embedding.cleanup()
+        for wdrnn in self.rnns:
+            wdrnn.cleanup()
 
     def init_weights(self):
         self.decoder.weight = self.embedding.embedding.raw_weight
