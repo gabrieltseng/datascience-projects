@@ -29,10 +29,20 @@ bool evaluateGuess(int guess, int targetNumber)
 
 int readGuess(int numGuesses)
 {
-	std::cout << "Guess #" << numGuesses + 1 << ": ";
-	int x;
-	std::cin >> x;
-	return x;
+	while(true)
+	{
+		std::cout << "Guess #" << numGuesses + 1 << ": ";
+		int x;
+		std::cin >> x;
+
+		if (std::cin.fail())
+		{
+			std::cin.clear();
+			std::cin.ignore(32767, '\n');
+		}
+		else
+			return x;
+	}
 }
 
 
