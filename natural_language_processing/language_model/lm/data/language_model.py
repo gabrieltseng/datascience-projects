@@ -63,10 +63,10 @@ class _LM_iter(object):
             sequence_length = int(np.random.normal(loc=iter_bsl, scale=5))
 
             x_max_idx = min(self.max_idx - 1, self.idx + sequence_length)
-            y_idx = min(self.max_idx, self.idx + sequence_length + 1)
+            y_max_idx = min(self.max_idx, self.idx + sequence_length + 1)
 
             x = self.dataset[:, self.idx: x_max_idx]
-            y = self.dataset[:, y_idx]
+            y = self.dataset[:, self.idx + 1: y_max_idx]
 
             self.idx += sequence_length + 2
             return x, y

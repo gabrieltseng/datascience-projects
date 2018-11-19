@@ -63,6 +63,8 @@ class WDLSTM(nn.Module):
 
         self.lstm.register_parameter('weight_hh_l0', nn.Parameter(weight_mask))
 
+        # Passing h0=None initializes the hidden layer to all 0s,
+        # so this is the equivalent of passing a 0 tensor.
         output, (hn, cn) = self.lstm(x, h0)
 
         return output, (hn, cn)
@@ -152,7 +154,7 @@ class RecLM(nn.Module):
 
         self.rnns = nn.ModuleList([WDLSTM(dropout=rnn_weight_dropout,
                                           input_size=embedding_dim if i == 0 else hidden_size,
-                                          hidden_size=embedding_dim if i != 0 and i != num_layers else hidden_size)
+                                          hidden_size=hidden_size if i != (num_layers - 1) else embedding_dim)
                                    for i in range(num_layers)])
 
         if not finetuning:
@@ -172,23 +174,20 @@ class RecLM(nn.Module):
         self.decoder.weight = self.embedding.embedding.raw_weight
         self.decoder.bias.data.fill_(0)
 
-    def forward(self, x, hidden):
+    def forward(self, x):
 
         x = self.emb_drop(self.embedding(x))
-        new_hidden = []
         for i, wdrnn in enumerate(self.rnns):
-            x, h = wdrnn(x, hidden[i])
+            x, hidden = wdrnn(x)
             if i == (len(self.rnns) - 1):
                 # no need for the cell state here
-                final_rnn_hidden = h[0]
-            new_hidden.append(h)
-        final_x = self.final_rnn_drop(x[:, -1, :].squeeze(1))
+                final_rnn_hidden = hidden[0]
         if not self.finetuning:
             # we only want the last output to be decoded
-            output = self.decoder(final_x)
-            if self.training: return output, new_hidden, final_rnn_hidden
+            output = self.decoder(x)
+            if self.training: return output, final_rnn_hidden
             else: return output
         else:
-            output = self.final_rnn_drop(final_x)
-            if self.training: return output, new_hidden, final_rnn_hidden
+            output = self.final_rnn_drop(x)
+            if self.training: return output, final_rnn_hidden
             else: return output

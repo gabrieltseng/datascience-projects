@@ -128,7 +128,7 @@ class ConvLM(nn.Module):
         for convblock in self.convblocks:
             x = convblock(x)
         x = x.permute(0, 2, 1).contiguous()
-        x = x[:, -1, :].squeeze(1)
-        # get the last output only
+        # the output is flattened so that it can be
+        # passed to cross entropy loss
         if not self.finetuning: return self.decoder(x)
         else: return x

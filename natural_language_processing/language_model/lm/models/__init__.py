@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 import math
 from copy import deepcopy
 
@@ -7,12 +8,32 @@ from lm.models.tcn import ConvLM
 from lm.models.classifier import LanguageClassifier
 
 
-def accuracy(output_labels, true_labels):
+class FlatCrossEntropyLoss(nn.Module):
+    """
+    Flattens a 3D prediction (and a 2D target), so that they can
+    be passed to PyTorch's cross entropy loss module
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.loss = nn.CrossEntropyLoss()
+
+    def forward(self, pred, target):
+        return self.loss(
+            pred.view(pred.shape[0] * pred.shape[1], pred.shape[2]),
+            target.contiguous().view(target.shape[0] * target.shape[1]))
+
+
+def accuracy(output_labels, true_labels, flatten=True):
     """
     For a more interpretable metric, calculate the accuracy of the predictions.
-    Copied from
+    Copied (and slightly modified) from
     https://github.com/GabrielTseng/LearningDataScience/blob/master/computer_vision/object_detection/voc/models.py#L44
     """
+    if flatten:
+        output_labels = output_labels.view(output_labels.shape[0] * output_labels.shape[1],
+                                           output_labels.shape[2])
+        true_labels = true_labels.contiguous().view(true_labels.shape[0] * true_labels.shape[1])
     if output_labels.shape[1] > 1:
         output_labels = torch.nn.functional.softmax(output_labels, dim=1).argmax(dim=1)
     else:
