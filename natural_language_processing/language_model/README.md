@@ -26,12 +26,20 @@ been processed in the same way.
 
 Variational dropout is also used for the embedding layer.
 
+Training results:
+
+![conv_results](diagrams/ConvLM_B3_L3_K2.png)
+
 ### 2b. RecLM
 
 The [recurrent language model](https://github.com/GabrielTseng/LearningDataScience/blob/master/natural_language_processing/language_model/lm/models/awd_lstm.py)
 consists of weight dropped RNNs stacked on top of each other, as happens in [2](#2).
 
 Variational dropout is used for the embedding layer.
+
+Training results:
+
+![rec_results](diagrams/RecLM_L3.png)
 
 ## References
 
