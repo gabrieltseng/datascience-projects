@@ -13,7 +13,6 @@ from translate.utils import chunk
 
 BOS_TOKEN = 'xbos'
 EOS_TOKEN = 'xeos'
-FIELD_TOKEN = 'xfld'
 
 
 class QuestionTokenizer(object):
@@ -86,9 +85,10 @@ class QuestionTokenizer(object):
         sort_indices = count.argsort()[::-1]
         sorted_tokens = unique_tokens[sort_indices]
 
-        # we will now add the unknown and padding tokens
+        # we will now add the beginning of sentence, unknown and padding tokens
         sorted_tokens = np.insert(sorted_tokens, 0, '_unk_')
         sorted_tokens = np.insert(sorted_tokens, 0, '_pad_')
+        sorted_tokens = np.insert(sorted_tokens, 0, BOS_TOKEN)
 
         # word2int
         word2int = {tok: idx for idx, tok in enumerate(sorted_tokens[:(vocab_size + 2)])}
