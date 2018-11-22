@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from ..data.process import BOS_TOKEN, EOS_TOKEN
+from ..data import BOS_TOKEN, EOS_TOKEN
 
 
 class FrenchToEnglish(nn.Module):
@@ -68,7 +68,11 @@ class FrenchToEnglish(nn.Module):
         _, hidden = self.encoder(fr_emb)
         hidden = self.transformer(hidden)
 
-        seq_tensor = self.en_embedding(torch.ones(batch_size).long().unsqueeze(1) * self.en_bos)
+        # generate a [batch_size, 1] dimensional tensor of the beginning of sentence tokens
+        base = torch.ones(batch_size).long().unsqueeze(1)
+        if self.en_embedding.weight.is_cuda: base = base.cuda()
+
+        seq_tensor = self.decoder_dropout(self.en_embedding(base * self.en_bos))
         en_questions = []
         for i in range(self.max_length):
             output, hidden = self.decoder(seq_tensor, hidden)
@@ -79,5 +83,5 @@ class FrenchToEnglish(nn.Module):
             # check we are not all at an end of sentence token
             if torch.eq(selected_words, self.en_eos).all():
                 return torch.cat(en_questions, dim=1)
-            seq_tensor = self.en_embedding(selected_words)
+            seq_tensor = self.decoder_dropout(self.en_embedding(selected_words))
         return torch.cat(en_questions, dim=1)

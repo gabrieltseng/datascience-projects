@@ -92,7 +92,7 @@ class SorterBase(object):
             fr = pad_sequence(fr, batch_first=True, padding_value=self.fr_pad_idx,
                               padding_first=True)
             self.idx = max_idx
-            return en, fr
+            return fr, en
         else:
             raise StopIteration()
 

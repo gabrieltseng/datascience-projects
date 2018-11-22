@@ -1,3 +1,7 @@
+BOS_TOKEN = 'xbos'
+EOS_TOKEN = 'xeos'
+
+
 def pad_sequence(sequences, batch_first=False, padding_value=0,
                  padding_first=False):
     """ A modification of the pytorch implementation so that the padding can

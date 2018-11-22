@@ -10,9 +10,7 @@ from spacy.lang.fr import French
 
 from translate.utils import chunk
 
-
-BOS_TOKEN = 'xbos'
-EOS_TOKEN = 'xeos'
+from ..data import BOS_TOKEN, EOS_TOKEN
 
 
 class QuestionTokenizer(object):
