@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 
+import random
+
 from ..data import BOS_TOKEN, EOS_TOKEN
 
 
@@ -8,7 +10,7 @@ class FrenchToEnglish(nn.Module):
 
     def __init__(self, fr_embedding_path, en_embedding_path, fr_dict, en_dict, max_en_length,
                  rnn_hidden_size=256, embedding_size=300, embedding_mean=0, embedding_std=0.3,
-                 encoder_dropout=0, decoder_dropout=0):
+                 encoder_dropout=0.15, decoder_dropout=0.35, bidirectional=True, forcing_probability=0):
         super().__init__()
 
         self.fr_embedding = self.get_embedding(fr_embedding_path, fr_dict, embedding_size,
@@ -17,10 +19,11 @@ class FrenchToEnglish(nn.Module):
                                                embedding_mean, embedding_std)
 
         self.encoder = nn.GRU(input_size=embedding_size, hidden_size=rnn_hidden_size, num_layers=2,
-                              batch_first=True, dropout=encoder_dropout)
+                              batch_first=True, dropout=encoder_dropout, bidirectional=bidirectional)
 
         # a linear transformation from the encoder to the decoder
-        self.transformer = nn.Linear(rnn_hidden_size, rnn_hidden_size)
+        self.transformer = nn.Linear(rnn_hidden_size * 2 if bidirectional else rnn_hidden_size,
+                                     rnn_hidden_size)
 
         self.decoder = nn.GRU(input_size=embedding_size, hidden_size=rnn_hidden_size, num_layers=2,
                               batch_first=True)
@@ -31,6 +34,9 @@ class FrenchToEnglish(nn.Module):
         self.max_length = max_en_length
         self.en_bos = en_dict[BOS_TOKEN]
         self.en_eos = en_dict[EOS_TOKEN]
+
+        # although this can be set here, ideally it would be controlled by the scheduler
+        self.forcing_probability = forcing_probability
 
     def get_embedding(self, embedding_path, language_dict, embedding_size=300, mean=0, std=0.3):
         """
@@ -59,7 +65,11 @@ class FrenchToEnglish(nn.Module):
                         embedding.weight[language_dict[tokens[0]]] = torch.tensor(list(map(float, tokens[1:])))
         return embedding
 
-    def forward(self, fr):
+    def forward(self, fr, en=None):
+        """
+        fr: the questions to be translated
+        en: if not None, will be used with teacher forcing
+        """
         # first, get the embeddings for the french input questions
         batch_size = fr.shape[0]
         fr_emb = self.fr_embedding(fr)
@@ -79,7 +89,17 @@ class FrenchToEnglish(nn.Module):
             words = self.to_vocab(output)
             en_questions.append(words)
 
-            selected_words = words.argmax(dim=-1)
+            # check if we should use forced teaching now
+            if (en is not None) and (self.forcing_probability > 0):
+                if random.random() < self.forcing_probability:
+                    if i < en.shape[1]:
+                        selected_words = en[:, i]
+                    else:
+                        return torch.cat(en_questions, dim=1)
+                else:
+                    selected_words = words.argmax(dim=-1)
+            else:
+                selected_words = words.argmax(dim=-1)
             # check we are not all at an end of sentence token
             if torch.eq(selected_words, self.en_eos).all():
                 return torch.cat(en_questions, dim=1)
