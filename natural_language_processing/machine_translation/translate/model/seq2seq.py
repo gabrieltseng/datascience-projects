@@ -66,7 +66,7 @@ class FrenchToEnglish(nn.Module):
 
         # we only care about the hidden output of the encoder
         _, hidden = self.encoder(fr_emb)
-        transformed = self.transformer(hidden)
+        hidden = self.transformer(hidden)
 
         seq_tensor = self.en_embedding(torch.ones(batch_size).long().unsqueeze(1) * self.en_bos)
         en_questions = []

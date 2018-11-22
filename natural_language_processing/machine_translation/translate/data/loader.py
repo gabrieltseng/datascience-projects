@@ -2,7 +2,7 @@ from sklearn.utils import shuffle
 import numpy as np
 
 import torch
-from torch.nn.utils.rnn import pad_sequence
+from ..data import pad_sequence
 
 from ..utils import chunk
 
@@ -87,7 +87,10 @@ class SorterBase(object):
 
             # pad
             en = pad_sequence(en, batch_first=True, padding_value=self.en_pad_idx)
-            fr = pad_sequence(fr, batch_first=True, padding_value=self.fr_pad_idx)
+
+            # so that the final state will reflect the final token in the input sentence
+            fr = pad_sequence(fr, batch_first=True, padding_value=self.fr_pad_idx,
+                              padding_first=True)
             self.idx = max_idx
             return en, fr
         else:
