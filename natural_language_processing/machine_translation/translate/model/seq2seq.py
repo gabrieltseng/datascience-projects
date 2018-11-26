@@ -6,6 +6,22 @@ import random
 from ..data import BOS_TOKEN, EOS_TOKEN
 
 
+class Attention(nn.Module):
+    def __init__(self, rnn_hidden_size):
+        super().__init__()
+        self.hidden_linear = nn.Linear(in_features=rnn_hidden_size, out_features=rnn_hidden_size)
+        self.total_linear = nn.Linear(in_features=rnn_hidden_size, out_features=1)
+
+    def forward(self, transformed_encodings, hidden):
+        """
+        Assumes the encodings have already been put through a linear layer,
+        since there is no need to do this for every loop in the decoder
+        """
+        x = torch.tanh(transformed_encodings + self.hidden_linear(hidden))
+        # first dimension is the sequences
+        return nn.functional.softmax(self.total_linear(x), dim=1)
+
+
 class FrenchToEnglish(nn.Module):
 
     def __init__(self, fr_embedding_path, en_embedding_path, fr_dict, en_dict, max_en_length,
@@ -13,6 +29,7 @@ class FrenchToEnglish(nn.Module):
                  encoder_dropout=0.15, decoder_dropout=0.35, bidirectional=True, forcing_probability=0):
         super().__init__()
 
+        self.bidirectional = bidirectional
         self.fr_embedding = self.get_embedding(fr_embedding_path, fr_dict, embedding_size,
                                                embedding_mean, embedding_std)
         self.en_embedding = self.get_embedding(en_embedding_path, en_dict, embedding_size,
@@ -21,9 +38,16 @@ class FrenchToEnglish(nn.Module):
         self.encoder = nn.GRU(input_size=embedding_size, hidden_size=rnn_hidden_size, num_layers=2,
                               batch_first=True, dropout=encoder_dropout, bidirectional=bidirectional)
 
-        # a linear transformation from the encoder to the decoder
-        self.transformer = nn.Linear(rnn_hidden_size * 2 if bidirectional else rnn_hidden_size,
-                                     rnn_hidden_size)
+        # a linear transformation from the encoder to the decoder 2)
+        self.hidden_transformer = nn.Linear(rnn_hidden_size * 2 if bidirectional else rnn_hidden_size,
+                                            rnn_hidden_size)
+        self.encoding_transformer = nn.Linear(rnn_hidden_size * 2 if bidirectional else rnn_hidden_size,
+                                              rnn_hidden_size)
+        # add attention
+        self.attention_layer = Attention(rnn_hidden_size=rnn_hidden_size)
+        self.rnn_transformer = nn.Linear((rnn_hidden_size * 2 if bidirectional else rnn_hidden_size) + embedding_size,
+                                          embedding_size)
+        # self.linear_attention = nn.Linear()
 
         self.decoder = nn.GRU(input_size=embedding_size, hidden_size=rnn_hidden_size, num_layers=2,
                               batch_first=True)
@@ -44,7 +68,6 @@ class FrenchToEnglish(nn.Module):
 
         Arguments:
             embedding_path: a pathlib.Path of the embeddings' path
-            language: the language of the embeddings being loaded
             language_dict: word to int
             embedding_size: the embedding size
             mean and std are the pre-trained embedding values, so that the
@@ -75,9 +98,13 @@ class FrenchToEnglish(nn.Module):
         fr_emb = self.fr_embedding(fr)
 
         # we only care about the hidden output of the encoder
-        _, hidden = self.encoder(fr_emb)
-        hidden = self.transformer(hidden)
-
+        encoding, hidden = self.encoder(fr_emb)
+        if self.bidirectional:
+            d1, _, d3 = hidden.shape
+            # if bidirectional, d1 will definitely be divisible by 2
+            hidden = hidden.view(int(d1 / 2), batch_size, int(d3 * 2))
+        transformed_encoding = self.encoding_transformer(encoding)
+        hidden = self.hidden_transformer(hidden)
         # generate a [batch_size, 1] dimensional tensor of the beginning of sentence tokens
         base = torch.ones(batch_size).long().unsqueeze(1)
         if self.en_embedding.weight.is_cuda: base = base.cuda()
@@ -85,15 +112,18 @@ class FrenchToEnglish(nn.Module):
         seq_tensor = self.decoder_dropout(self.en_embedding(base * self.en_bos))
         en_questions = []
         for i in range(self.max_length):
-            output, hidden = self.decoder(seq_tensor, hidden)
+            attention = self.attention_layer(transformed_encoding,
+                                             hidden[-1].unsqueeze(0).transpose(1, 0))
+            weighted_inputs = (attention * encoding).sum(1).unsqueeze(1)
+            rnn_input = self.rnn_transformer(torch.cat([weighted_inputs, seq_tensor], dim=-1))
+            output, hidden = self.decoder(rnn_input, hidden)
             words = self.to_vocab(output)
             en_questions.append(words)
-
             # check if we should use forced teaching now
             if (en is not None) and (self.forcing_probability > 0):
                 if random.random() < self.forcing_probability:
                     if i < en.shape[1]:
-                        selected_words = en[:, i]
+                        selected_words = en[:, i].unsqueeze(1)
                     else:
                         return torch.cat(en_questions, dim=1)
                 else:
