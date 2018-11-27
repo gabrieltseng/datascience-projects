@@ -24,18 +24,15 @@ class FlatCrossEntropyLoss(nn.Module):
 
         if pred.shape[1] < target.shape[1]:
             # somewhere, padding is needed
-            pred_right_size = torch.zeros(pred.shape[0], target.shape[1],
-                                          pred.shape[-1])
-            if pred.is_cuda: pred_right_size = pred_right_size.cuda()
-            pred_right_size[:, :, self.pad_idx] = 1
-            pred_right_size[:, :pred.shape[1], :] = pred
-            pred = pred_right_size
+            padding_length = target.shape[1] - pred.shape[1]
+            pred_padding = torch.zeros(pred.shape[0], padding_length,
+                                       pred.shape[-1])
+            if pred.is_cuda: pred_padding = pred_padding.cuda()
+            pred_padding[:, :, self.pad_idx] = 1
+            pred = torch.cat([pred, pred_padding], dim=1)
         elif pred.shape[1] > target.shape[1]:
-            target_right_size = torch.ones(target.shape[0], pred.shape[1]).long() * self.pad_idx
-            if target.is_cuda: target_right_size = target_right_size.cuda()
-            target_right_size[:, :target.shape[1]] = target
-            target = target_right_size
+            pred = pred[:, :target.shape[1], :].contiguous()
 
         return self.loss(
             pred.view(pred.shape[0] * pred.shape[1], pred.shape[2]),
-            target.contiguous().view(target.shape[0] * target.shape[1]))
+            target.view(target.shape[0] * target.shape[1]))
