@@ -40,9 +40,15 @@ class QuestionTokenizer(object):
         for en, fr in zip(english.open(), french.open()):
             # remove the newline character
             en, fr = en[:-1], fr[:-1]
-            if en.startswith('Wh') and en.endswith('?'):
-                english_qs.append(en)
-                french_qs.append(fr)
+            if en.startswith('Wh') and en.endswith('?') and fr.endswith('?'):
+                # some questions seem to be from forms; this removes them
+                # This is particularly important, because sentences with lots
+                # of punctuation will have an outsized effect on the model,
+                # since they will have comparatively longer sentences
+                form_substrings = ['_____', '.....', '. . . . .', '_ _ _ _ _']
+                if all(form not in en for form in form_substrings):
+                    english_qs.append(en)
+                    french_qs.append(fr)
 
         print(f'Loaded {len(english_qs)} questions')
 
