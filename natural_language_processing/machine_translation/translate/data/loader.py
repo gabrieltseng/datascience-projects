@@ -129,8 +129,11 @@ class _SortIter(SorterBase):
     """
     def _order(self):
         data = zip(self.english, self.french)
+
+        # reverse=False for easier visualizations, since we are more
+        # likely to see entire questions if they are shorter
         en, fr = map(list, zip(*sorted(data, key=lambda x: len(x[1]),
-                     reverse=True)))
+                     reverse=False)))
         en = [torch.tensor(x, device=self.device) for x in en]
         fr = [torch.tensor(x, device=self.device) for x in fr]
 

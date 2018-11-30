@@ -44,7 +44,7 @@ class QuestionTokenizer(object):
                 # some questions seem to be from forms; this removes them
                 # This is particularly important, because sentences with lots
                 # of punctuation will have an outsized effect on the model,
-                # since they will have comparatively longer sentences
+                # since they will be comparatively longer
                 form_substrings = ['_____', '.....', '. . . . .', '_ _ _ _ _']
                 if all(form not in en for form in form_substrings):
                     english_qs.append(en)

@@ -26,7 +26,8 @@ class FrenchToEnglish(nn.Module):
 
     def __init__(self, fr_embedding_path, en_embedding_path, fr_dict, en_dict, max_en_length,
                  rnn_hidden_size=256, embedding_size=300, embedding_mean=0, embedding_std=0.3,
-                 encoder_dropout=0.15, decoder_dropout=0.35, bidirectional=True, forcing_probability=0):
+                 encoder_dropout=0.15, decoder_dropout=0.35, bidirectional=True, forcing_probability=0,
+                 attention=False):
         super().__init__()
 
         self.bidirectional = bidirectional
@@ -41,13 +42,14 @@ class FrenchToEnglish(nn.Module):
         # a linear transformation from the encoder to the decoder 2)
         self.hidden_transformer = nn.Linear(rnn_hidden_size * 2 if bidirectional else rnn_hidden_size,
                                             rnn_hidden_size)
-        self.encoding_transformer = nn.Linear(rnn_hidden_size * 2 if bidirectional else rnn_hidden_size,
-                                              rnn_hidden_size)
         # add attention
-        self.attention_layer = Attention(rnn_hidden_size=rnn_hidden_size)
-        self.rnn_transformer = nn.Linear((rnn_hidden_size * 2 if bidirectional else rnn_hidden_size) + embedding_size,
-                                          embedding_size)
-        # self.linear_attention = nn.Linear()
+        self.attention = attention
+        if self.attention:
+            self.attention_layer = Attention(rnn_hidden_size=rnn_hidden_size)
+            self.rnn_transformer = nn.Linear((rnn_hidden_size * 2 if bidirectional else rnn_hidden_size) +
+                                             embedding_size, embedding_size)
+            self.encoding_transformer = nn.Linear(rnn_hidden_size * 2 if bidirectional else rnn_hidden_size,
+                                                  rnn_hidden_size)
 
         self.decoder = nn.GRU(input_size=embedding_size, hidden_size=rnn_hidden_size, num_layers=2,
                               batch_first=True)
@@ -103,7 +105,8 @@ class FrenchToEnglish(nn.Module):
             d1, _, d3 = hidden.shape
             # if bidirectional, d1 will definitely be divisible by 2
             hidden = hidden.view(int(d1 / 2), batch_size, int(d3 * 2))
-        transformed_encoding = self.encoding_transformer(encoding)
+        if self.attention:
+            transformed_encoding = self.encoding_transformer(encoding)
         hidden = self.hidden_transformer(hidden)
         # generate a [batch_size, 1] dimensional tensor of the beginning of sentence tokens
         base = torch.ones(batch_size).long().unsqueeze(1)
@@ -112,11 +115,12 @@ class FrenchToEnglish(nn.Module):
         seq_tensor = self.decoder_dropout(self.en_embedding(base * self.en_bos))
         en_questions = []
         for i in range(self.max_length):
-            attention = self.attention_layer(transformed_encoding,
-                                             hidden[-1].unsqueeze(0).transpose(1, 0))
-            weighted_inputs = (attention * encoding).sum(1).unsqueeze(1)
-            rnn_input = self.rnn_transformer(torch.cat([weighted_inputs, seq_tensor], dim=-1))
-            output, hidden = self.decoder(rnn_input, hidden)
+            if self.attention:
+                attention = self.attention_layer(transformed_encoding,
+                                                 hidden[-1].unsqueeze(0).transpose(1, 0))
+                weighted_inputs = (attention * encoding).sum(1).unsqueeze(1)
+                seq_tensor = self.rnn_transformer(torch.cat([weighted_inputs, seq_tensor], dim=-1))
+            output, hidden = self.decoder(seq_tensor, hidden)
             words = self.to_vocab(output)
             en_questions.append(words)
             # check if we should use forced teaching now

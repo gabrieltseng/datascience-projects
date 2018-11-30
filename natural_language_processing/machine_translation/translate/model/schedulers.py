@@ -74,6 +74,9 @@ class TeacherForcing(object):
         self.forcing_stepsize = 1 / num_forcing_steps
         self.model = model
 
+        # set the model's current forcing to 1
+        self.model.forcing_probability = 1
+
     def get_forcing(self):
         if self.current_forcing > 0:
             self.current_forcing = max(0, self.current_forcing - self.forcing_stepsize)

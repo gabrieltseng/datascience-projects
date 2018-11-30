@@ -5,7 +5,7 @@ import torch
 
 def read_sentence(word2int, ints):
     if type(ints) == torch.Tensor:
-        if len(ints.shape) == 3:
+        if len(ints.shape) == 2:
             # turn a prediction into a sequence of ints
             ints = torch.argmax(ints, dim=-1)
         if ints.is_cuda:
