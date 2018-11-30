@@ -2,7 +2,8 @@ import torch
 from torch import nn
 
 from .seq2seq import FrenchToEnglish
-from .schedulers import OneCycle
+from .schedulers import OneCycle, TeacherForcing
+from .train import find_learning_rate, train
 
 
 class FlatCrossEntropyLoss(nn.Module):
