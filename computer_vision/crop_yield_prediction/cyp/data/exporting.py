@@ -62,6 +62,17 @@ class MODISExporter:
         print(f'Done: {task.status()}')
 
     @staticmethod
+    def _append_temp_band(current, previous):
+        # Transforms an Image Collection with 1 band per Image into a single Image with items as bands
+        # Author: Jamie Vleeshouwer
+
+        # Rename the band
+        previous = ee.Image(previous)
+        current = current.select([0, 4])
+        # Append it to the result (Note: only return current item on first element/iteration)
+        return ee.Algorithms.If(ee.Algorithms.IsEqual(previous, None), current, previous.addBands(ee.Image(current)))
+
+    @staticmethod
     def _append_band(current, previous):
         # Transforms an Image Collection with 1 band per Image into a single Image with items as bands
         # Author: Jamie Vleeshouwer
@@ -73,7 +84,7 @@ class MODISExporter:
         return ee.Algorithms.If(ee.Algorithms.IsEqual(previous, None), current, previous.addBands(ee.Image(current)))
 
     def export(self, folder_name, coordinate_system='EPSG:4326', scale=500, region_type='uscounties', offset=0.11,
-               datefilter=None, export_limit=None, min_img_val=None, max_img_val=None):
+               datefilter=None, export_limit=None, min_img_val=None, max_img_val=None, temp=False):
         """Export an Image Collection from Earth Engine to Google Drive
 
         Parameters
@@ -104,6 +115,9 @@ class MODISExporter:
                 A minimum value to clip the band values to
             max_img_val: int or None
                 A maximum value to clip the band values to
+            temp: boolean, default=False
+                Whether we are collecting only temperature information, and so should only
+                get the 0th and 4th bands
         """
         if datefilter == 'default':
             datefilter = ('2002-12-31', '2016-8-4')
@@ -112,7 +126,11 @@ class MODISExporter:
             .filterBounds(ee.Geometry.Rectangle(-106.5, 50, -64, 23))
         if datefilter:
             imgcoll.filterDate(datefilter[0], datefilter[1])
-        img = imgcoll.iterate(self._append_band)
+
+        if temp:
+            img = imgcoll.iterate(self._append_temp_band)
+        else:
+            img = imgcoll.iterate(self._append_band)
         img = ee.Image(img)
 
         # "clip" the values of the bands
@@ -184,7 +202,7 @@ class MODISExporter:
 
     def export_all(self, export_limit=None):
         """
-        Export all the data. This is equivalent to running the 5/10 scripts on the original github repo.
+        Export all the data.
         """
 
         # first, make sure the class was initialized correctly
@@ -192,24 +210,16 @@ class MODISExporter:
                                collection_id='MODIS/MOD09A1')
 
         # pull_MODIS_entire_county_clip.py
-        self.export(folder_name='crop_yield/test', datefilter='default',
+        self.export(folder_name='crop_yield/data_image', datefilter='default',
                     region_type='countygeometries', min_img_val=16000, max_img_val=100,
                     export_limit=export_limit)
 
         # pull_MODIS_landcover_entire_county_clip.py
-        self.update_parameters(locations_filepath=Path('data/subset_locations.csv'),
-                               collection_id='MODIS/051/MCD12Q1')
+        self.update_parameters(collection_id='MODIS/051/MCD12Q1')
         self.export(folder_name='crop_yield/data_mask', datefilter='default',
                     region_type='countygeometries', export_limit=export_limit)
 
-        # pull_MODIS_temperature_entire_county_clip.py
+        # # pull_MODIS_temperature_entire_county_clip.py
         self.update_parameters(collection_id='MODIS/MYD11A2')
         self.export(folder_name='crop_yield/data_temperature', datefilter='default',
-                    region_type='countygeometries', export_limit=export_limit)
-
-        # pull_MODIS_world.py
-        self.update_parameters(locations_filepath=Path('data/world_locations.csv'),
-                               collection_id='MODIS/MOD09A1')
-        self.export(folder_name='crop_yield/data_world', datefilter='default', region_type='world',
-                    min_img_val=5000, max_img_val=0,
-                    export_limit=export_limit)
+                    region_type='countygeometries', export_limit=export_limit, temp=True)
