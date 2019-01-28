@@ -3,14 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def visualize(path_to_tif):
-    """Visualize a downloaded file.
+def visualize_modis(path_to_tif):
+    """Visualize a downloaded MODIS file.
 
     Takes the red, green and blue bands to plot a
     'colour image' of a downloaded tif file.
 
     Note that this is not a true colour image, since
-    this is a complex thing to represents, and instead is a 'basic
+    this is a complex thing to represent. It is a 'basic
     true colour scheme'
     http://www.hdfeos.org/forums/showthread.php?t=736
 
