@@ -145,18 +145,18 @@ class MODISExporter:
                                collection_id='MODIS/MOD09A1')
 
         # # pull_MODIS_entire_county_clip.py
-        self.export(folder_name='crop_yield/data_image', data_type='image',
+        self.export(folder_name='crop_yield-data_image', data_type='image',
                     min_img_val=16000, max_img_val=100,
                     export_limit=export_limit)
 
         # pull_MODIS_landcover_entire_county_clip.py
         self.update_parameters(collection_id='MODIS/051/MCD12Q1')
-        self.export(folder_name='crop_yield/data_mask', data_type='mask',
+        self.export(folder_name='crop_yield-data_mask', data_type='mask',
                     export_limit=export_limit)
 
         # # pull_MODIS_temperature_entire_county_clip.py
         self.update_parameters(collection_id='MODIS/MYD11A2')
-        self.export(folder_name='crop_yield/data_temperature', data_type='temperature',
+        self.export(folder_name='crop_yield-data_temperature', data_type='temperature',
                     export_limit=export_limit)
         print('Done exporting! Download the folders from your Google Drive')
 

@@ -1,9 +1,8 @@
-import rasterio
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def visualize_modis(path_to_tif):
+def visualize_modis(data):
     """Visualize a downloaded MODIS file.
 
     Takes the red, green and blue bands to plot a
@@ -16,11 +15,8 @@ def visualize_modis(path_to_tif):
 
     Parameters
     ----------
-    path_to_tif: str
-        string path to the tif file
+    data: a rasterio mimic Python file object
     """
-    data = rasterio.open(path_to_tif)
-
     arr_red = data.read(1)
     arr_green = data.read(4)
     arr_blue = data.read(3)
