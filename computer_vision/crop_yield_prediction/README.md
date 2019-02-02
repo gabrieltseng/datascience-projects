@@ -41,7 +41,7 @@ Two more bands which can be used as input data to our models.
 
 ## Additional notes so far
 
-The following table is used for county deliminations:
+The following table is used for county delineations:
 
 * [Copy of United States Counties](https://fusiontables.google.com/data?docid=1S4EB6319wWW2sWQDPhDvmSBIVrD3iEmCLYB7nMM#rows:id=1)
 
