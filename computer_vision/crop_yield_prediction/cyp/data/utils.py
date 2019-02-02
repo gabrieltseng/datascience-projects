@@ -1,5 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+
+
+def load_clean_yield_data(yield_data_filepath):
+    """
+    Cleans the yield data by making sure any Nan values in the columns we care about
+    are removed
+    """
+    important_columns = ['Year', 'State ANSI', 'County ANSI', 'Value']
+    yield_data = pd.read_csv(yield_data_filepath).dropna(subset=important_columns,
+                                                         how='any')
+    return yield_data
 
 
 def visualize_modis(data):

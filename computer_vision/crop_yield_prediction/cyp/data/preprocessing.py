@@ -1,8 +1,9 @@
 from pathlib import Path
 import numpy as np
-import pandas as pd
 import gdal
 import math
+
+from .utils import load_clean_yield_data as load
 
 
 class DataCleaner:
@@ -28,7 +29,7 @@ class DataCleaner:
         if not self.savedir.exists():
             self.savedir.mkdir()
 
-        self.yield_data = pd.read_csv(yield_data_path)[['Year', 'State ANSI', 'County ANSI']].values
+        self.yield_data = load(yield_data_path)[['Year', 'State ANSI', 'County ANSI']].values
 
     def get_filenames(self):
         """

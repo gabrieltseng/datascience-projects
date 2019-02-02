@@ -1,7 +1,8 @@
 import ee
 import time
-import pandas as pd
 from pathlib import Path
+
+from .utils import load_clean_yield_data as load
 
 
 class MODISExporter:
@@ -18,7 +19,7 @@ class MODISExporter:
     """
     def __init__(self, locations_filepath=Path('data/yield_data.csv'),
                  collection_id='MODIS/051/MCD12Q1'):
-        self.locations = pd.read_csv(locations_filepath)
+        self.locations = load(locations_filepath)
         self.collection_id = collection_id
 
         try:
@@ -33,7 +34,7 @@ class MODISExporter:
         Update the locations file or the collection id
         """
         if locations_filepath is not None:
-            self.locations = pd.read_csv(locations_filepath)
+            self.locations = load(locations_filepath)
         if collection_id is not None:
             self.collection_id = collection_id
 
