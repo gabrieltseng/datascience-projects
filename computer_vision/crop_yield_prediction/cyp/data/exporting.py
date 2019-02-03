@@ -125,15 +125,8 @@ class MODISExporter:
             processed_img = img.clip(file_region)
             file_region = None
 
-            while True:
-                try:
-                    self._export_one_image(processed_img, folder_name, fname, file_region, scale, coordinate_system)
-                except:
-                    print
-                    'retry'
-                    time.sleep(10)
-                    continue
-                break
+            self._export_one_image(processed_img, folder_name, fname, file_region, scale, coordinate_system)
+
         print('Finished Exporting!')
 
     def export_all(self, export_limit=None):
