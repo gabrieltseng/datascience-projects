@@ -48,8 +48,6 @@ class Engineer:
     @staticmethod
     def filter_timespan(imcol, start_day=49, end_day=305, composite_period=8, bands=9):
         """
-        Author: Jiaxuan You, https://github.com/JiaxuanYou
-
         Given an image collection containing a year's worth of data,
         filter it between start_day and end_day. If end_day is later than the date
         for which we have data, the image collection is padded with zeros.
@@ -80,7 +78,42 @@ class Engineer:
             imcol = np.concatenate((imcol, padding), axis=2)
         return imcol[:, :, start_index: end_index]
 
-    def process(self, num_bands=9, generate='mean', num_bins=32, ):
+    @staticmethod
+    def _calculate_histogram(imagecol, num_bins=32, bands=9, max_bin_val=4999):
+        """
+        Given an image collection, turn it into a histogram.
+
+        Parameters
+        ----------
+        imcol: The image collection to be histogrammed
+        num_bins: int, default=32
+            The number of bins to use in the histogram.
+        bands: int, default=9
+            The number of bands per image. Default taken from the number of bands in the
+            MOD09A1 + the number of bands in the MYD11A2 datasets
+        max_bin_val: int, default=4999
+            The maximum value of the bins. The default is taken from the original repository;
+            note that the maximum pixel values from the MODIS datsets range from 16000 to
+            18000 depending on the band
+
+        Returns
+        ----------
+        A histogram for each band, of the band's pixel values. The output shape is
+        [num_bins, times, bands], where times is the number of unique timestamps in the
+        image collection.
+        """
+        bin_seq = np.linspace(1, max_bin_val, num_bins + 1)
+
+        hist = []
+        for im in np.split(imagecol, imagecol.shape[-1] / bands, axis=-1):
+            imhist = []
+            for i in range(im.shape[-1]):
+                density, _ = np.histogram(im[:, :, i], bin_seq, density=False)
+                imhist.append(density)
+            hist.append(np.stack(imhist, axis=1))
+        return np.stack(hist, axis=1)
+
+    def process(self, num_bands=9, generate='histogram', num_bins=32):
         """
         Parameters
         ----------
@@ -117,16 +150,17 @@ class Engineer:
                     image = np.sum(image, axis=(0, 1)) / np.count_nonzero(image) * image.shape[2]
                     image[np.isnan(image)] = 0
                 elif generate == 'histogram':
-                    raise NotImplementedError
+                    image = self._calculate_histogram(image, num_bins=num_bins)
+                    image[np.isnan(image)] = 0
                 output_images.append(image)
                 yields.append(yield_data.Value)
                 years.append(year)
                 locations.append(np.array([yield_data.Longitude, yield_data.Latitude]))
                 state_county_info.append(np.array([county, state]))
 
-                print(f'County: {county}, State: {state}, Year: {year}, Sum of mean: {np.sum(image)}')
+                print(f'County: {county}, State: {state}, Year: {year}, Output shape: {image.shape}')
 
-        np.savez(self.cleaned_data / 'histogram_all_mean.npz',
+        np.savez(self.cleaned_data / f'histogram_all_{"mean" if (generate == "mean") else "full"}.npz',
                  output_image=np.stack(output_images), output_yield=np.array(yields),
                  output_year=np.array(years), output_locations=np.stack(locations),
                  output_index=np.stack(state_county_info))
