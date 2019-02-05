@@ -43,10 +43,10 @@ class DataCleaner:
                 files.append(str(dir_file.parts[-1]))
         return files
 
-    def process(self):
+    def process(self, num_years=14):
         for filename in self.tif_files:
             process_county(self.savedir, self.image_path, self.mask_path, self.temperature_path, self.yield_data,
-                           filename)
+                           filename, num_years=num_years)
 
 
 def process_county(savedir, image_path, mask_path, temperature_path, yield_data, filename, num_years=14):

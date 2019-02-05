@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 
 from .utils import load_clean_yield_data as load
+from .. import MAJOR_STATES
 
 
 class MODISExporter:
@@ -63,7 +64,7 @@ class MODISExporter:
         print(f'Done: {task.status()}')
 
     def export(self, folder_name, data_type, coordinate_system='EPSG:4326', scale=500,
-               export_limit=None, min_img_val=None, max_img_val=None):
+               export_limit=None, min_img_val=None, max_img_val=None, major_states_only=True):
         """Export an Image Collection from Earth Engine to Google Drive
 
         Parameters
@@ -86,6 +87,9 @@ class MODISExporter:
                 A minimum value to clip the band values to
             max_img_val: int or None
                 A maximum value to clip the band values to
+            major_states_only: boolean, default=True
+                Whether to only use the 11 states responsible for 75 % of national soybean
+                production, as is done in the paper
         """
 
         imgcoll = ee.ImageCollection(self.collection_id) \
@@ -117,8 +121,12 @@ class MODISExporter:
         region = ee.FeatureCollection('ft:1S4EB6319wWW2sWQDPhDvmSBIVrD3iEmCLYB7nMM')
 
         for state_id, county_id in self.locations[['State ANSI', 'County ANSI']].values[: export_limit]:
-            fname = '{}_{}'.format(int(state_id), int(county_id))
+            if major_states_only:
+                if int(state_id) not in MAJOR_STATES:
+                    print(f'Skipping state id {int(state_id)}')
+                    continue
 
+            fname = '{}_{}'.format(int(state_id), int(county_id))
             file_region = region.filterMetadata('StateFips', 'equals', int(state_id))
             file_region = ee.FeatureCollection(file_region).filterMetadata('CntyFips', 'equals', int(county_id))
             file_region = ee.Feature(file_region.first())
@@ -129,7 +137,7 @@ class MODISExporter:
 
         print('Finished Exporting!')
 
-    def export_all(self, export_limit=None):
+    def export_all(self, export_limit=None, major_states_only=True):
         """
         Export all the data.
         """
@@ -141,17 +149,17 @@ class MODISExporter:
         # # pull_MODIS_entire_county_clip.py
         self.export(folder_name='crop_yield-data_image', data_type='image',
                     min_img_val=16000, max_img_val=100,
-                    export_limit=export_limit)
+                    export_limit=export_limit, major_states_only=major_states_only)
 
         # pull_MODIS_landcover_entire_county_clip.py
         self.update_parameters(collection_id='MODIS/051/MCD12Q1')
         self.export(folder_name='crop_yield-data_mask', data_type='mask',
-                    export_limit=export_limit)
+                    export_limit=export_limit, major_states_only=major_states_only)
 
         # # pull_MODIS_temperature_entire_county_clip.py
         self.update_parameters(collection_id='MODIS/MYD11A2')
         self.export(folder_name='crop_yield-data_temperature', data_type='temperature',
-                    export_limit=export_limit)
+                    export_limit=export_limit, major_states_only=major_states_only)
         print('Done exporting! Download the folders from your Google Drive')
 
 

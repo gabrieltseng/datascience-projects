@@ -79,7 +79,8 @@ class Engineer:
         return imcol[:, :, start_index: end_index]
 
     @staticmethod
-    def _calculate_histogram(imagecol, num_bins=32, bands=9, max_bin_val=4999):
+    def _calculate_histogram(imagecol, num_bins=32, bands=9, max_bin_val=4999,
+                             channels_first=True):
         """
         Given an image collection, turn it into a histogram.
 
@@ -110,10 +111,14 @@ class Engineer:
             for i in range(im.shape[-1]):
                 density, _ = np.histogram(im[:, :, i], bin_seq, density=False)
                 imhist.append(density)
-            hist.append(np.stack(imhist, axis=1))
+            if channels_first:
+                hist.append(np.stack(imhist))
+            else:
+                hist.append(np.stack(imhist, axis=1))
         return np.stack(hist, axis=1)
 
-    def process(self, num_bands=9, generate='histogram', num_bins=32):
+    def process(self, num_bands=9, generate='histogram', num_bins=32, max_bin_val=4999,
+                channels_first=True):
         """
         Parameters
         ----------
@@ -126,6 +131,13 @@ class Engineer:
             the bands with num_bins bins for each band.
         num_bins: int, default=32
             If generate=='histogram', the number of bins to generate in the histogram.
+        max_bin_val: int, default=4999
+            The maximum value of the bins. The default is taken from the original repository;
+            note that the maximum pixel values from the MODIS datsets range from 16000 to
+            18000 depending on the band
+        channels_first: boolean, default=True
+            If true, the output histogram has shape [bands, times, bins]. Otherwise, it
+            has shape [times, bins, bands]
         """
 
         # define all the outputs of this method
@@ -150,13 +162,15 @@ class Engineer:
                     image = np.sum(image, axis=(0, 1)) / np.count_nonzero(image) * image.shape[2]
                     image[np.isnan(image)] = 0
                 elif generate == 'histogram':
-                    image = self._calculate_histogram(image, num_bins=num_bins)
+                    image = self._calculate_histogram(image, bands=num_bands, num_bins=num_bins,
+                                                      max_bin_val=max_bin_val,
+                                                      channels_first=channels_first)
                     image[np.isnan(image)] = 0
                 output_images.append(image)
                 yields.append(yield_data.Value)
                 years.append(year)
                 locations.append(np.array([yield_data.Longitude, yield_data.Latitude]))
-                state_county_info.append(np.array([county, state]))
+                state_county_info.append(np.array([int(state), int(county)]))
 
                 print(f'County: {county}, State: {state}, Year: {year}, Output shape: {image.shape}')
 
