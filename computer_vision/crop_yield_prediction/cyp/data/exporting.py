@@ -1,4 +1,5 @@
 import ee
+import ssl
 import time
 from pathlib import Path
 
@@ -132,9 +133,14 @@ class MODISExporter:
             file_region = ee.Feature(file_region.first())
             processed_img = img.clip(file_region)
             file_region = None
-
-            self._export_one_image(processed_img, folder_name, fname, file_region, scale, coordinate_system)
-
+            while True:
+                try:
+                    self._export_one_image(processed_img, folder_name, fname, file_region, scale, coordinate_system)
+                except (ee.ee_exception.EEException, ssl.SSLEOFError):
+                    print(f'Retrying State {int(state_id)}, County {int(county_id)}')
+                    time.sleep(10)
+                    continue
+                break
         print('Finished Exporting!')
 
     def export_all(self, export_limit=None, major_states_only=True):
