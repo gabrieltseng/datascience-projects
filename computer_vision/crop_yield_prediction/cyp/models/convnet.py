@@ -20,7 +20,8 @@ class ConvModel(ModelBase):
         self.savedir = savedir
 
     def train(self, path_to_histogram=Path('data/img_output/histogram_all_full.npz'),
-              pred_years=None, num_runs=2, train_steps=10, batch_size=32):
+              pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
+              starter_learning_rate=1e-3):
 
         with np.load(path_to_histogram) as hist:
             images = hist['output_image']
@@ -32,14 +33,16 @@ class ConvModel(ModelBase):
         if pred_years is None:
             pred_years = range(2009, 2016)
         for pred_year in pred_years:
-            print(f'Training to predict on {pred_year}')
-            self._train_1_year(images, yields, years, pred_year, num_runs, train_steps, batch_size)
-            print('-----------')
+            for run_number in range(1, num_runs + 1):
+                print(f'Training to predict on {pred_year}, Run number {run_number}')
+                self._train_1_year(images, yields, years, pred_year, run_number, train_steps, batch_size,
+                                   starter_learning_rate)
+                print('-----------')
 
         # TODO: delete broken images (?)
 
-    def _train_1_year(self, images, yields, years, predict_year, run_number, train_steps=25000,
-                      batch_size=32):
+    def _train_1_year(self, images, yields, years, predict_year, run_number, train_steps,
+                      batch_size, starter_learning_rate):
         train_indices = np.nonzero(years < predict_year)[0]
         val_indices = np.nonzero(years == predict_year)[0]
 
@@ -58,7 +61,8 @@ class ConvModel(ModelBase):
         val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
         criterion = nn.MSELoss()  # TODO: L1 loss as well?
-        optimizer = torch.optim.Adam([pam for pam in self.model.parameters()])
+        optimizer = torch.optim.Adam([pam for pam in self.model.parameters()],
+                                     lr=starter_learning_rate)
 
         num_epochs = int(train_steps / train_indices.shape[0])
         print(f'Training for {num_epochs} epochs')
@@ -80,7 +84,11 @@ class ConvModel(ModelBase):
 
                 running_train_scores['loss'].append(loss.item())
                 train_scores['loss'].append(loss.item())
-                step_number += 1  # TODO shift learning rate
+
+                step_number += 1
+                if (step_number == 2000) or (step_number == 4000):
+                    for param_group in optimizer.param_groups:
+                        param_group['lr'] /= 10
 
             train_output_strings = []
             for key, val in running_train_scores.items():
