@@ -1,7 +1,8 @@
 name: crop_yield_prediction
 channels:
-  - conda-forge
+  - pytorch
   - anaconda
+  - conda-forge
   - defaults
 dependencies:
   - appnope=0.1.0
@@ -70,7 +71,7 @@ dependencies:
   - click=7.0
   - click-plugins=1.0.4
   - cligj=0.5.0
-  - cryptography=2.3.1
+  - cryptography=2.5
   - curl=7.63.0
   - cycler=0.10.0
   - docutils=0.14
@@ -78,6 +79,7 @@ dependencies:
   - fontconfig=2.13.1
   - freetype=2.9.1
   - freexl=1.0.5
+  - gdal=2.4.0
   - geos=3.7.1
   - geotiff=1.4.3
   - gettext=0.19.8.1
@@ -132,7 +134,7 @@ dependencies:
   - pyparsing=2.3.1
   - pysocks=1.6.8
   - python=3.7.1
-  - rasterio=1.0.14
+  - rasterio=1.0.15
   - readline=7.0
   - rsa=3.4.2
   - s3transfer=0.1.13
@@ -143,6 +145,7 @@ dependencies:
   - sqlite=3.26.0
   - tk=8.6.9
   - tornado=5.1.1
+  - tqdm=4.30.0
   - tzcode=2018g
   - uritemplate=3.0.0
   - urllib3=1.24.1
@@ -151,4 +154,7 @@ dependencies:
   - xz=5.2.4
   - zlib=1.2.11
   - zstd=1.3.3
-
+  - ninja=1.8.2
+  - pytorch=1.0.0
+  - pip:
+    - torch==1.0.0
