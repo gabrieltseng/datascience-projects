@@ -169,7 +169,7 @@ class Engineer:
                 output_images.append(image)
                 yields.append(yield_data.Value)
                 years.append(year)
-                locations.append(np.array([yield_data.Longitude, yield_data.Latitude]))
+                locations.append(np.array([float(yield_data.Longitude), float(yield_data.Latitude)]))
                 state_county_info.append(np.array([int(state), int(county)]))
 
                 print(f'County: {county}, State: {state}, Year: {year}, Output shape: {image.shape}')

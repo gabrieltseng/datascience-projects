@@ -11,6 +11,28 @@ from .base import ModelBase
 
 
 class ConvModel(ModelBase):
+    """
+    A PyTorch replica of the CNN structured model from the original paper.
+
+    Parameters
+    ----------
+    in_channels: int, default=9
+        Number of channels in the input data. Default taken from the number of bands in the
+        MOD09A1 + the number of bands in the MYD11A2 datasets
+    dropout: float, default=0.25
+        Default taken from the original repository
+    out_channels_list: list or None, default=None
+        Out_channels of all the convolutional blocks. If None, default values will be taken
+        from the paper. Note the length of the list defines the number of conv blocks used.
+    stride_list: list or None, default=None
+        Strides of all the convolutional blocks. If None, default values will be taken from the paper
+        If not None, must be equal in length to the out_channels_list
+    dense_features: list, or None, default=None.
+        output feature size of the Linear layers. If None, default values will be taken from the paper.
+        The length of the list defines how many linear layers are used.
+    savedir: pathlib Path, default=Path('data/models')
+        The directory into which the models should be saved.
+    """
 
     def __init__(self, in_channels=9, dropout=0.25, out_channels_list=None, stride_list=None,
                  dense_features=None, savedir=Path('data/models')):
@@ -20,8 +42,30 @@ class ConvModel(ModelBase):
         self.savedir = savedir
 
     def train(self, path_to_histogram=Path('data/img_output/histogram_all_full.npz'),
-              pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
+              pred_years=None, num_runs=2, train_steps=5, batch_size=32,
               starter_learning_rate=1e-3):
+        """
+        Train the models. Note that multiple models are trained: as per the paper, a model
+        is trained for each year, with all preceding years used as training values. In addition,
+        for each year, 2 models are trained to account for random initialization.
+
+        Parameters
+        ----------
+        path_to_histogram: pathlib Path, default=Path('data/img_output/histogram_all_full.npz')
+            The location of the training data
+        pred_years: list or None, default=None
+            Which years to build models for. If None, the default values from the paper (range(2009, 2016))
+            are used.
+        num_runs: int, default=2
+            The number of runs to do per year. Default taken from the paper
+        train_steps: int, default=25000
+            The number of steps for which to train the model. Default taken from the paper.
+        batch_size: int, default=32
+            Batch size when training. Default taken from the paper
+        starter_learning_rate: float, default=1e-3
+            Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
+            steps. Default taken from the paper
+        """
 
         with np.load(path_to_histogram) as hist:
             images = hist['output_image']
@@ -35,14 +79,17 @@ class ConvModel(ModelBase):
         for pred_year in pred_years:
             for run_number in range(1, num_runs + 1):
                 print(f'Training to predict on {pred_year}, Run number {run_number}')
-                self._train_1_year(images, yields, years, pred_year, run_number, train_steps, batch_size,
-                                   starter_learning_rate)
+                self._train_1_year(images, yields, years, locations, indices, pred_year,
+                                   run_number, train_steps, batch_size, starter_learning_rate)
                 print('-----------')
 
         # TODO: delete broken images (?)
 
-    def _train_1_year(self, images, yields, years, predict_year, run_number, train_steps,
-                      batch_size, starter_learning_rate):
+    def _train_1_year(self, images, yields, years, locations, indices, predict_year, run_number,
+                      train_steps, batch_size, starter_learning_rate):
+        """
+        Train one model on one year of data. To be called by train().
+        """
         train_indices = np.nonzero(years < predict_year)[0]
         val_indices = np.nonzero(years == predict_year)[0]
 
@@ -53,9 +100,11 @@ class ConvModel(ModelBase):
 
         val_images = torch.tensor(images[val_indices]).float()
         val_yields = torch.tensor(yields[val_indices]).float().unsqueeze(1)
+        val_locations = torch.tensor(locations[val_indices])
+        val_indices = torch.tensor(indices[val_indices])
 
         train_dataset = TensorDataset(train_images, train_yields)
-        val_dataset = TensorDataset(val_images, val_yields)
+        val_dataset = TensorDataset(val_images, val_yields, val_locations, val_indices)
 
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
@@ -69,10 +118,13 @@ class ConvModel(ModelBase):
         step_number = 0
 
         train_scores = defaultdict(list)
-        val_scores = defaultdict(list)
+        val_results = defaultdict(list)
 
         for epoch in range(num_epochs):
             self.model.train()
+
+            # running train and val scores are only for printing out
+            # information
             running_train_scores = defaultdict(list)
 
             for train_x, train_y in tqdm(train_dataloader):
@@ -97,11 +149,16 @@ class ConvModel(ModelBase):
             running_val_scores = defaultdict(list)
             self.model.eval()
             with torch.no_grad():
-                for val_x, val_y in tqdm(val_dataloader):
+                for val_x, val_y, val_loc, val_idx in tqdm(val_dataloader):
                     val_pred_y = self.model(val_x)
                     val_loss = criterion(val_pred_y, val_y)
                     running_val_scores['loss'].append(val_loss.item())
-                    val_scores['loss'].append(val_loss.item())
+
+                    val_results['loss'].append(val_loss.item())
+                    val_results['predictions'].extend(val_pred_y.squeeze(1).tolist())
+                    val_results['locations'].extend(val_loc.tolist())
+                    val_results['indices'].extend(val_idx.tolist())
+
             val_output_strings = []
             for key, val in running_val_scores.items():
                 val_output_strings.append('{}: {}'.format(key, round(np.array(val).mean(), 5)))
@@ -110,8 +167,11 @@ class ConvModel(ModelBase):
 
             model_information = {
                 'state_dict': self.model.state_dict(),
-                'val_loss': val_scores,
-                'train_loss': train_scores
+                'val_loss': val_results['loss'],
+                'train_loss': train_scores['loss'],
+                'predictions': val_results['predictions'],
+                'prediction_locations': val_results['locations'],
+                'prediction_indices': val_results['indices'],
             }
             filename = f'{predict_year}_{run_number}.pth.tar'
             torch.save(model_information, self.savedir / filename)
@@ -121,22 +181,7 @@ class ConvNet(nn.Module):
     """
     A crop yield conv net.
 
-    Parameters
-    ----------
-    in_channels: int, default=9
-        Number of channels in the input data. Default taken from the number of bands in the
-        MOD09A1 + the number of bands in the MYD11A2 datasets
-    dropout: float, default=0.25
-        Default taken from the original repository
-    out_channels_list: list or None, default=None
-        Out_channels of all the convolutional blocks. If None, default values will be taken
-        from the paper. Note the length of the list defines the number of conv blocks used.
-    stride_list: list or None, default=None
-        Strides of all the convolutional blocks. If None, default values will be taken from the paper
-        If not None, must be equal in length to the out_channels_list
-    dense_features: list, or None, default=None.
-        output feature size of the Linear layers. If None, default values will be taken from the paper.
-        The length of the list defines how many linear layers are used.
+    For a description of the parameters, see the ConvModel class.
     """
     def __init__(self, in_channels=9, dropout=0.25, out_channels_list=None, stride_list=None,
                  dense_features=None):
