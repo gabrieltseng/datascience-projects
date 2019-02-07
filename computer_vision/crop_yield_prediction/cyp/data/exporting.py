@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 from .utils import load_clean_yield_data as load
+from .utils import get_tif_files
 from .. import MAJOR_STATES
 
 
@@ -65,7 +66,8 @@ class MODISExporter:
         print(f'Done: {task.status()}')
 
     def export(self, folder_name, data_type, coordinate_system='EPSG:4326', scale=500,
-               export_limit=None, min_img_val=None, max_img_val=None, major_states_only=True):
+               export_limit=None, min_img_val=None, max_img_val=None, major_states_only=True,
+               check_if_done=False, download_folder=None):
         """Export an Image Collection from Earth Engine to Google Drive
 
         Parameters
@@ -91,7 +93,18 @@ class MODISExporter:
             major_states_only: boolean, default=True
                 Whether to only use the 11 states responsible for 75 % of national soybean
                 production, as is done in the paper
+            check_if_done: boolean, default=False
+                If true, will check download_folder for any .tif files which have already been
+                downloaded, and won't export them again. This effectively allows for
+                checkpointing, and prevents all files from having to be downloaded at once.
+            download_folder: None or pathlib Path, default=None
+                Which folder to check for downloaded files, if check_if_done=True. If None, looks
+                in data/folder_name
         """
+        if check_if_done:
+            if download_folder is None:
+                download_folder = Path('data') / folder_name
+                already_downloaded = get_tif_files(download_folder)
 
         imgcoll = ee.ImageCollection(self.collection_id) \
             .filterBounds(ee.Geometry.Rectangle(-106.5, 50, -64, 23)) \
@@ -120,14 +133,21 @@ class MODISExporter:
         # https://fusiontables.google.com/data?docid=1S4EB6319wWW2sWQDPhDvmSBIVrD3iEmCLYB7nMM#rows:id=1
 
         region = ee.FeatureCollection('ft:1S4EB6319wWW2sWQDPhDvmSBIVrD3iEmCLYB7nMM')
+        count = 0
 
-        for state_id, county_id in self.locations[['State ANSI', 'County ANSI']].values[: export_limit]:
+        for state_id, county_id in self.locations[['State ANSI', 'County ANSI']].values:
             if major_states_only:
                 if int(state_id) not in MAJOR_STATES:
                     print(f'Skipping state id {int(state_id)}')
                     continue
 
             fname = '{}_{}'.format(int(state_id), int(county_id))
+
+            if check_if_done:
+                if f'{fname}.tif' in already_downloaded:
+                    print(f'{fname}.tif already downloaded! Skipping')
+                    continue
+
             file_region = region.filterMetadata('StateFips', 'equals', int(state_id))
             file_region = ee.FeatureCollection(file_region).filterMetadata('CntyFips', 'equals', int(county_id))
             file_region = ee.Feature(file_region.first())
@@ -141,12 +161,24 @@ class MODISExporter:
                     time.sleep(10)
                     continue
                 break
-        print('Finished Exporting!')
 
-    def export_all(self, export_limit=None, major_states_only=True):
+            count += 1
+            if export_limit:
+                if count >= export_limit:
+                    print('Reached export limit! Stopping')
+                    break
+        print(f'Finished Exporting {count} files!')
+
+    def export_all(self, export_limit=None, major_states_only=True, check_if_done=True,
+                   download_folder=None):
         """
         Export all the data.
+
+        download_folder = list of 3 pathlib Paths, for each of the 3 downloads
         """
+        if download_folder is None:
+            download_folder = [None] * 3
+        assert len(download_folder) == 3, "Must have 3 download folders for the 3 exports!"
 
         # first, make sure the class was initialized correctly
         self.update_parameters(locations_filepath=Path('data/yield_data.csv'),
@@ -155,17 +187,20 @@ class MODISExporter:
         # # pull_MODIS_entire_county_clip.py
         self.export(folder_name='crop_yield-data_image', data_type='image',
                     min_img_val=16000, max_img_val=100,
-                    export_limit=export_limit, major_states_only=major_states_only)
+                    export_limit=export_limit, major_states_only=major_states_only,
+                    check_if_done=check_if_done, download_folder=download_folder[0])
 
         # pull_MODIS_landcover_entire_county_clip.py
         self.update_parameters(collection_id='MODIS/051/MCD12Q1')
         self.export(folder_name='crop_yield-data_mask', data_type='mask',
-                    export_limit=export_limit, major_states_only=major_states_only)
+                    export_limit=export_limit, major_states_only=major_states_only,
+                    check_if_done=check_if_done, download_folder=download_folder[1])
 
-        # # pull_MODIS_temperature_entire_county_clip.py
+        # pull_MODIS_temperature_entire_county_clip.py
         self.update_parameters(collection_id='MODIS/MYD11A2')
         self.export(folder_name='crop_yield-data_temperature', data_type='temperature',
-                    export_limit=export_limit, major_states_only=major_states_only)
+                    export_limit=export_limit, major_states_only=major_states_only,
+                    check_if_done=check_if_done, download_folder=download_folder[2])
         print('Done exporting! Download the folders from your Google Drive')
 
 

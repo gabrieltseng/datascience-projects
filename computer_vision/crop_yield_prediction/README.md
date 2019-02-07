@@ -16,6 +16,9 @@ python -c "import ee; ee.Initialize()"
 
 Note that Earth Engine exports files to Google Drive by default (to the same google account used sign up to Earth Engine.)
 
+To download the data used in the paper (MODIS images of the top 11 soybean producing states in the US) requires
+approximately **400 Gb** of storage. I recommend doing this in steps - the export class allows for checkpointing.
+
 ## MODIS datasets
 
 The satellite data used comes from the Moderate Resolution Imaging Spectroradiometer 

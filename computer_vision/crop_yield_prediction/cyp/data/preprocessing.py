@@ -4,6 +4,7 @@ import gdal
 import math
 
 from .utils import load_clean_yield_data as load
+from .utils import get_tif_files
 
 
 class DataCleaner:
@@ -23,25 +24,13 @@ class DataCleaner:
         self.mask_path = mask_path
         self.temperature_path = temperature_path
         self.image_path = image_path
-        self.tif_files = self.get_filenames()
+        self.tif_files = get_tif_files(self.image_path)
 
         self.savedir = savedir
         if not self.savedir.exists():
             self.savedir.mkdir()
 
         self.yield_data = load(yield_data_path)[['Year', 'State ANSI', 'County ANSI']].values
-
-    def get_filenames(self):
-        """
-        Get all the .tif files in the image folder.
-        """
-        files = []
-        for dir_file in self.image_path.iterdir():
-            if str(dir_file).endswith('tif'):
-
-                # strip out the directory so its just the filename
-                files.append(str(dir_file.parts[-1]))
-        return files
 
     def process(self, num_years=14):
         for filename in self.tif_files:

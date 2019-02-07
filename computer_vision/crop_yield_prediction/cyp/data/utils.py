@@ -3,6 +3,25 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
+def get_tif_files(image_path):
+    """
+    Get all the .tif files in the image folder.
+
+    Parameters
+    ----------
+    image_path: pathlib Path
+        Directory to search for tif files
+    Returns:
+        A list of .tif filenames
+    """
+    files = []
+    for dir_file in image_path.iterdir():
+        if str(dir_file).endswith('tif'):
+            # strip out the directory so its just the filename
+            files.append(str(dir_file.parts[-1]))
+    return files
+
+
 def load_clean_yield_data(yield_data_filepath):
     """
     Cleans the yield data by making sure any Nan values in the columns we care about
