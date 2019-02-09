@@ -31,10 +31,19 @@ class ConvModel(ModelBase):
 
     def __init__(self, in_channels=9, dropout=0.25, out_channels_list=None, stride_list=None,
                  dense_features=None, savedir=Path('data/models')):
-        super().__init__(savedir)
-        self.model = ConvNet(in_channels=in_channels, dropout=dropout,
-                             out_channels_list=out_channels_list, stride_list=stride_list,
-                             dense_features=dense_features)
+
+        model = ConvNet(in_channels=in_channels, dropout=dropout,
+                        out_channels_list=out_channels_list, stride_list=stride_list,
+                        dense_features=dense_features)
+
+        if dense_features is None:
+            num_dense_layers = 2
+        else:
+            num_dense_layers = len(dense_features)
+        model_weight = f'dense_layers.{num_dense_layers - 1}.weight'
+        model_bias = f'dense_layers.{num_dense_layers - 1}.bias'
+
+        super().__init__(model, model_weight, model_bias, savedir)
 
 
 class ConvNet(nn.Module):
@@ -73,7 +82,6 @@ class ConvNet(nn.Module):
             nn.Linear(in_features=dense_features[i-1],
                       out_features=dense_features[i]) for i in range(1, len(dense_features))
         ])
-        self.dense = nn.Linear(in_features=1024, out_features=1024)
 
         self.initialize_weights()
 
