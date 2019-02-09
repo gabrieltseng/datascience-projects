@@ -2,6 +2,7 @@ import ee
 import ssl
 import time
 from pathlib import Path
+import numpy as np
 
 from .utils import load_clean_yield_data as load
 from .utils import get_tif_files
@@ -23,6 +24,7 @@ class MODISExporter:
     def __init__(self, locations_filepath=Path('data/yield_data.csv'),
                  collection_id='MODIS/051/MCD12Q1'):
         self.locations = load(locations_filepath)
+
         self.collection_id = collection_id
 
         try:
@@ -135,7 +137,7 @@ class MODISExporter:
         region = ee.FeatureCollection('ft:1S4EB6319wWW2sWQDPhDvmSBIVrD3iEmCLYB7nMM')
         count = 0
 
-        for state_id, county_id in self.locations[['State ANSI', 'County ANSI']].values:
+        for state_id, county_id in np.unique(self.locations[['State ANSI', 'County ANSI']].values, axis=0):
             if major_states_only:
                 if int(state_id) not in MAJOR_STATES:
                     print(f'Skipping state id {int(state_id)}')
