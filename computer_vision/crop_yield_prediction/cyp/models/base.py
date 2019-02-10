@@ -34,10 +34,13 @@ class ModelBase:
         sigma_b: float, default=0.01
             Parameter variance; the variance on B
     """
-    def __init__(self, model, model_weight, model_bias, savedir, use_gp=True,
+    def __init__(self, model, model_weight, model_bias, model_type, savedir, use_gp=True,
                  sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
-        self.savedir = savedir
+        self.savedir = savedir / model_type
+        self.savedir.mkdir(parents=True, exist_ok=True)
+
         self.model = model
+        self.model_type = model_type
         self.model_weight = model_weight
         self.model_bias = model_bias
 
@@ -86,7 +89,7 @@ class ModelBase:
         run_numbers = []
         rmse_list = []
         me_list = []
-        if use_gp:
+        if self.gp is not None:
             rmse_gp_list = []
             me_gp_list = []
 
@@ -111,7 +114,7 @@ class ModelBase:
 
                 print('-----------')
         data = {'year': years_list, 'run_number': run_numbers, 'RMSE': rmse_list, 'ME': me_list}
-        if use_gp:
+        if self.gp is not None:
             data['RMSE_GP'] = rmse_gp_list
             data['ME_GP'] = me_gp_list
         results_df = pd.DataFrame(data=data)
@@ -175,7 +178,7 @@ class ModelBase:
                                   model_information['model_bias'])
             model_information['val_pred_gp'] = gp_pred.squeeze(1)
 
-        filename = f'{predict_year}_{run_number}{"_gp" if use_gp else ""}.pth.tar'
+        filename = f'{predict_year}_{run_number}{"_gp" if (self.gp is not None) else ""}.pth.tar'
         torch.save(model_information, self.savedir / filename)
         return self.analyze_results(model_information['val_real'], model_information['val_pred'], gp_pred)
 

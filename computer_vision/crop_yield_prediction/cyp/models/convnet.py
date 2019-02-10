@@ -43,7 +43,7 @@ class ConvModel(ModelBase):
         model_weight = f'dense_layers.{num_dense_layers - 1}.weight'
         model_bias = f'dense_layers.{num_dense_layers - 1}.bias'
 
-        super().__init__(model, model_weight, model_bias, savedir)
+        super().__init__(model, model_weight, model_bias, 'cnn', savedir)
 
 
 class ConvNet(nn.Module):
@@ -88,8 +88,12 @@ class ConvNet(nn.Module):
     def initialize_weights(self):
         for convblock in self.convblocks:
             nn.init.kaiming_uniform_(convblock.conv.weight.data)
+            # http://cs231n.github.io/neural-networks-2/#init
+            # see: Initializing the biases
+            nn.init.constant_(convblock.conv.bias.data, 0)
         for dense_layer in self.dense_layers:
             nn.init.kaiming_uniform_(dense_layer.weight.data)
+            nn.init.constant_(dense_layer.bias.data, 0)
 
     def forward(self, x, return_last_dense=False):
         """
