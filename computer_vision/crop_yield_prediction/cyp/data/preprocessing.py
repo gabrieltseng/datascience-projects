@@ -2,6 +2,8 @@ from pathlib import Path
 import numpy as np
 import gdal
 import math
+from itertools import repeat
+from concurrent.futures import ProcessPoolExecutor
 
 from .utils import load_clean_yield_data as load
 from .utils import get_tif_files
@@ -20,11 +22,16 @@ class DataCleaner:
                  temperature_path=Path('data/crop_yield-data_temperature'),
                  image_path=Path('data/crop_yield-data_image'),
                  yield_data_path=Path('data/yield_data.csv'),
-                 savedir=Path('data/img_output')):
+                 savedir=Path('data/img_output'),
+                 multiprocessing=False, processes=4, parallelism=6):
         self.mask_path = mask_path
         self.temperature_path = temperature_path
         self.image_path = image_path
         self.tif_files = get_tif_files(self.image_path)
+
+        self.multiprocessing = multiprocessing
+        self.processes = processes
+        self.parallelism = parallelism
 
         self.savedir = savedir
         if not self.savedir.exists():
@@ -33,12 +40,29 @@ class DataCleaner:
         self.yield_data = load(yield_data_path)[['Year', 'State ANSI', 'County ANSI']].values
 
     def process(self, num_years=14):
-        for filename in self.tif_files:
-            process_county(self.savedir, self.image_path, self.mask_path, self.temperature_path, self.yield_data,
-                           filename, num_years=num_years)
+        if not self.multiprocessing:
+            for filename in self.tif_files:
+                process_county(filename, self.savedir, self.image_path, self.mask_path, self.temperature_path,
+                               self.yield_data, num_years=num_years)
+        else:
+            length = len(self.tif_files)
+            files_iter = iter(self.tif_files)
+
+            # turn all other arguments to iterators
+            savedir_iter = repeat(self.savedir)
+            im_path_iter = repeat(self.image_path)
+            mask_path_iter = repeat(self.mask_path)
+            temp_path_iter = repeat(self.temperature_path)
+            yd_iter = repeat(self.yield_data)
+            num_years_iter = repeat(num_years)
+
+            with ProcessPoolExecutor() as executor:
+                chunksize = int(max(length / (self.processes * self.parallelism), 1))
+                executor.map(process_county, files_iter, savedir_iter, im_path_iter, mask_path_iter,
+                             temp_path_iter, yd_iter, num_years_iter, chunksize=chunksize)
 
 
-def process_county(savedir, image_path, mask_path, temperature_path, yield_data, filename, num_years=14):
+def process_county(filename, savedir, image_path, mask_path, temperature_path, yield_data, num_years=14):
     """
     Process and save county level data
     """
@@ -81,7 +105,7 @@ def process_county(savedir, image_path, mask_path, temperature_path, yield_data,
         if np.equal(yield_data[:, :3], key).all(axis=1).max():
             save_filename = f'{year}_{state}_{county}'
             np.save(savedir / save_filename, masked_img_temp[i])
-            print(f'{save_filename} written')
+    print(f'{filename} array written')
 
 
 # helper methods for the data cleaning class
