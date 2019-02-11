@@ -39,14 +39,14 @@ class GaussianProcess:
         years = np.expand_dims(years, axis=1)
 
         # These are the squared exponential kernel function we'll use for the covariance
-        se_loc = squareform(pdist(locations, 'euclidean')) ** 2 / self.r_loc ** 2
-        se_year = squareform(pdist(years, 'euclidean')) ** 2 / self.r_year ** 2
+        se_loc = squareform(pdist(locations, 'euclidean')) ** 2 / (self.r_loc ** 2)
+        se_year = squareform(pdist(years, 'euclidean')) ** 2 / (self.r_year ** 2)
 
         # make the dirac matrix we'll add onto the kernel function
-        dirac = np.zeros([n_train + n_val, n_train + n_val])
-        dirac[0: n_train, 0: n_train] += (self.sigma_e ** 2) * np.identity(n_train)
+        noise = np.zeros([n_train + n_val, n_train + n_val])
+        noise[0: n_train, 0: n_train] += (self.sigma_e ** 2) * np.identity(n_train)
 
-        kernel = ((self.sigma ** 2) * np.exp(-se_loc) * np.exp(-se_year)) + dirac
+        kernel = ((self.sigma ** 2) * np.exp(-se_loc) * np.exp(-se_year)) + noise
 
         # since B is diagonal, and B = self.sigma_b * np.identity(feat_train.shape[1]),
         # its easy to calculate the inverse of B
@@ -62,6 +62,6 @@ class GaussianProcess:
 
         # We take the mean of g(X*) as our prediction, also from equation 2.41
         pred = H_val.dot(beta) + \
-               kernel[n_train: (n_train + n_val), :n_train].dot(K_inv).dot(Y_train - H_train.dot(beta))
+               kernel[n_train:, :n_train].dot(K_inv).dot(Y_train - H_train.dot(beta))
 
         return pred

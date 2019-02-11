@@ -49,8 +49,8 @@ class ModelBase:
             self.gp = GaussianProcess(sigma, r_loc, r_year, sigma_e, sigma_b)
 
     def run(self, path_to_histogram=Path('data/img_output/histogram_all_full.npz'),
-            pred_years=None, num_runs=2, train_steps=5, batch_size=32,
-            starter_learning_rate=1e-3, return_last_dense=True):
+            times=None, pred_years=None, num_runs=1, train_steps=500, batch_size=32,
+            starter_learning_rate=1e-3):
         """
         Train the models. Note that multiple models are trained: as per the paper, a model
         is trained for each year, with all preceding years used as training values. In addition,
@@ -60,6 +60,9 @@ class ModelBase:
         ----------
         path_to_histogram: pathlib Path, default=Path('data/img_output/histogram_all_full.npz')
             The location of the training data
+        times: list, or None, default=None
+            Which time indices to train the model on. If None, the default values from the paper
+            ([4, 10, 31]) are used.
         pred_years: list or None, default=None
             Which years to build models for. If None, the default values from the paper (range(2009, 2016))
             are used.
@@ -72,9 +75,6 @@ class ModelBase:
         starter_learning_rate: float, default=1e-3
             Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
             steps. Default taken from the paper
-        return_last_dense: boolean, default=True
-            Whether or not to save the second-to-last vector produced by the network. This is necessary to train
-            a Gaussian process.
         """
 
         with np.load(path_to_histogram) as hist:
@@ -89,39 +89,48 @@ class ModelBase:
         run_numbers = []
         rmse_list = []
         me_list = []
+        times_list = []  # which subset of times the model will be trained on
         if self.gp is not None:
             rmse_gp_list = []
             me_gp_list = []
 
         if pred_years is None:
-            pred_years = range(2009, 2016)
+            pred_years=[2015]
+            # pred_years = range(2009, 2016)
+        if times is None:
+            times = [32]
+            # TODO: doesn't work for convolutions
+            # times = range(10, 31, 4)
+            # print(list(times))
         for pred_year in pred_years:
             for run_number in range(1, num_runs + 1):
-                print(f'Training to predict on {pred_year}, Run number {run_number}')
-                results = self._run_1_year(images, yields, years, locations, indices, pred_year,
-                                           run_number, train_steps, batch_size, starter_learning_rate,
-                                           return_last_dense)
-                years_list.append(pred_year)
-                run_numbers.append(run_number)
-                if self.gp is not None:
-                    rmse, me, rmse_gp, me_gp = results
-                    rmse_gp_list.append(rmse_gp)
-                    me_gp_list.append(me_gp)
-                else:
-                    rmse, me = results
-                rmse_list.append(rmse)
-                me_list.append(me)
+                for time in times:
+                    print(f'Training to predict on {pred_year}, Run number {run_number}')
+                    results = self._run_1_year(images, yields, years, locations, indices, pred_year, time,
+                                               run_number, train_steps, batch_size, starter_learning_rate)
+                    years_list.append(pred_year)
+                    run_numbers.append(run_number)
+                    times_list.append(time)
+                    if self.gp is not None:
+                        rmse, me, rmse_gp, me_gp = results
+                        rmse_gp_list.append(rmse_gp)
+                        me_gp_list.append(me_gp)
+                    else:
+                        rmse, me = results
+                    rmse_list.append(rmse)
+                    me_list.append(me)
 
                 print('-----------')
-        data = {'year': years_list, 'run_number': run_numbers, 'RMSE': rmse_list, 'ME': me_list}
+        data = {'year': years_list, 'run_number': run_numbers, 'time_idx': times,
+                'RMSE': rmse_list, 'ME': me_list}
         if self.gp is not None:
             data['RMSE_GP'] = rmse_gp_list
             data['ME_GP'] = me_gp_list
         results_df = pd.DataFrame(data=data)
         results_df.to_csv(self.savedir / f'{str(datetime.now().date())}.csv', index=False)
 
-    def _run_1_year(self, images, yields, years, locations, indices, predict_year, run_number,
-                    train_steps, batch_size, starter_learning_rate, return_last_dense):
+    def _run_1_year(self, images, yields, years, locations, indices, predict_year, time, run_number,
+                    train_steps, batch_size, starter_learning_rate):
         """
         Train one model on one year of data, and then save the model predictions.
         To be called by run().
@@ -133,13 +142,13 @@ class ModelBase:
 
         print(f'Train set size: {train_idx.shape[0]}, Val set size: {val_idx.shape[0]}')
 
-        train_images = torch.tensor(train_images).float()
+        train_images = torch.tensor(train_images[:, :, :time, :]).float()
         train_yields = torch.tensor(yields[train_idx]).float().unsqueeze(1)
         train_locations = torch.tensor(locations[train_idx])
         train_indices = torch.tensor(indices[train_idx])
         train_years = torch.tensor(years[train_idx])
 
-        val_images = torch.tensor(val_images).float()
+        val_images = torch.tensor(val_images[:, :, :time, :]).float()
         val_yields = torch.tensor(yields[val_idx]).float().unsqueeze(1)
         val_locations = torch.tensor(locations[val_idx])
         val_indices = torch.tensor(indices[val_idx])
@@ -154,7 +163,7 @@ class ModelBase:
                                                starter_learning_rate)
         results = self._predict(train_images, train_yields, train_locations, train_indices,
                                 val_images, val_yields, val_locations, val_indices,
-                                train_years, val_years, return_last_dense, batch_size)
+                                train_years, val_years, batch_size)
 
         model_information = {
             'state_dict': self.model.state_dict(),
@@ -180,7 +189,8 @@ class ModelBase:
 
         filename = f'{predict_year}_{run_number}{"_gp" if (self.gp is not None) else ""}.pth.tar'
         torch.save(model_information, self.savedir / filename)
-        return self.analyze_results(model_information['val_real'], model_information['val_pred'], gp_pred)
+        return self.analyze_results(model_information['val_real'], model_information['val_pred'],
+                                    model_information['val_pred_gp'])
 
     def _train(self, train_images, train_yields, val_images, val_yields, train_steps,
                batch_size, starter_learning_rate):
@@ -195,7 +205,7 @@ class ModelBase:
         optimizer = torch.optim.Adam([pam for pam in self.model.parameters()],
                                       lr=starter_learning_rate)
 
-        num_epochs = int(train_steps / train_images.shape[0])
+        num_epochs = int(train_steps / (train_images.shape[0] / batch_size))
         print(f'Training for {num_epochs} epochs')
         step_number = 0
 
@@ -248,7 +258,7 @@ class ModelBase:
 
     def _predict(self, train_images, train_yields, train_locations, train_indices,
                  val_images, val_yields, val_locations, val_indices, train_years, val_years,
-                 return_last_dense, batch_size):
+                 batch_size):
         """
         Predict on the training and validation data. Optionally, return the last
         feature vector of the model.
@@ -265,8 +275,9 @@ class ModelBase:
         self.model.eval()
         with torch.no_grad():
             for train_im, train_yield, train_loc, train_idx, train_year in tqdm(train_dataloader):
-                model_output = self.model(train_im, return_last_dense=return_last_dense)
-                if return_last_dense:
+                model_output = self.model(train_im,
+                                          return_last_dense=True if (self.gp is not None) else False)
+                if self.gp is not None:
                     pred, feat = model_output
                     results['train_feat'].append(feat.numpy())
                 else:
@@ -278,8 +289,9 @@ class ModelBase:
                 results['train_years'].extend(train_year.tolist())
 
             for val_im, val_yield, val_loc, val_idx, val_year in tqdm(val_dataloader):
-                model_output = self.model(val_im, return_last_dense=return_last_dense)
-                if return_last_dense:
+                model_output = self.model(val_im,
+                                          return_last_dense=True if (self.gp is not None) else False)
+                if self.gp is not None:
                     pred, feat = model_output
                     results['val_feat'].append(feat.numpy())
                 else:
