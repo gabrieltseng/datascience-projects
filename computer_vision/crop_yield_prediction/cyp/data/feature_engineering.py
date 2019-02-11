@@ -166,13 +166,23 @@ class Engineer:
                                                       max_bin_val=max_bin_val,
                                                       channels_first=channels_first)
                     image[np.isnan(image)] = 0
+
                 output_images.append(image)
                 yields.append(yield_data.Value)
                 years.append(year)
-                locations.append(np.array([float(yield_data.Longitude), float(yield_data.Latitude)]))
+
+                # some of the minus signs in the longitudes have been carried over to the
+                # longitudes, i.e. 19.683885, -155.393159 becomes 19.683885-, 155.393159
+                try:
+                    lat, lon = float(yield_data.Latitude), float(yield_data.Longitude)
+                except ValueError:
+                    lat = float(yield_data.Latitude[:-1])
+                    lon = -float(yield_data.Longitude)
+                locations.append(np.array([lon, lat]))
+
                 state_county_info.append(np.array([int(state), int(county)]))
 
-                print(f'County: {county}, State: {state}, Year: {year}, Output shape: {image.shape}')
+                print(f'County: {int(county)}, State: {state}, Year: {year}, Output shape: {image.shape}')
 
         np.savez(self.cleaned_data / f'histogram_all_{"mean" if (generate == "mean") else "full"}.npz',
                  output_image=np.stack(output_images), output_yield=np.array(yields),
