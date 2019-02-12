@@ -17,6 +17,21 @@ class DataCleaner:
     - split the image collections into years
     - merge the temperature and reflection images
     - apply the mask, so only the farmland pixels are considered
+
+    Parameters
+    -----------
+    mask_path: pathlib Path, default=Path('data/crop_yield-data_mask')
+        Path to which the mask tif files have been saved
+    temperature_path: pathlib Path, default=Path('data/crop_yield-data_temperature')
+        Path to which the temperature tif files have been saved
+    image_path: pathlib Path, default=Path('data/crop_yield-data_image')
+        Path to which the image tif files have been saved
+    yield_data: pathlib Path, default=Path('data/yield_data.csv')
+        Path to the yield data csv file
+    savedir: pathlib Path, default=Path('data/img_output')
+        Path to save the data to
+    multiprocessing: boolean, default=False
+        Whether to use multiprocessing
     """
     def __init__(self, mask_path=Path('data/crop_yield-data_mask'),
                  temperature_path=Path('data/crop_yield-data_temperature'),
@@ -39,11 +54,24 @@ class DataCleaner:
 
         self.yield_data = load(yield_data_path)[['Year', 'State ANSI', 'County ANSI']].values
 
-    def process(self, num_years=14):
+    def process(self, num_years=14, delete_when_done=False):
+        """
+        Process all the data.
+
+        Parameters
+        ----------
+        num_years: int, default=14
+            How many years of data to create.
+        delete_when_done: boolean, default=False
+            Whether or not to delete the original .tif files once the .npy array
+            has been generated.
+        """
+        if delete_when_done:
+            print("Warning! delete_when_done=True will delete the .tif files")
         if not self.multiprocessing:
             for filename in self.tif_files:
                 process_county(filename, self.savedir, self.image_path, self.mask_path, self.temperature_path,
-                               self.yield_data, num_years=num_years)
+                               self.yield_data, num_years=num_years, delete_when_done=delete_when_done)
         else:
             length = len(self.tif_files)
             files_iter = iter(self.tif_files)
@@ -55,14 +83,17 @@ class DataCleaner:
             temp_path_iter = repeat(self.temperature_path)
             yd_iter = repeat(self.yield_data)
             num_years_iter = repeat(num_years)
+            delete_when_done_iter = repeat(delete_when_done)
 
             with ProcessPoolExecutor() as executor:
                 chunksize = int(max(length / (self.processes * self.parallelism), 1))
                 executor.map(process_county, files_iter, savedir_iter, im_path_iter, mask_path_iter,
-                             temp_path_iter, yd_iter, num_years_iter, chunksize=chunksize)
+                             temp_path_iter, yd_iter, num_years_iter, delete_when_done_iter,
+                             chunksize=chunksize)
 
 
-def process_county(filename, savedir, image_path, mask_path, temperature_path, yield_data, num_years=14):
+def process_county(filename, savedir, image_path, mask_path, temperature_path, yield_data, num_years,
+                   delete_when_done):
     """
     Process and save county level data
     """
@@ -105,6 +136,10 @@ def process_county(filename, savedir, image_path, mask_path, temperature_path, y
         if np.equal(yield_data[:, :3], key).all(axis=1).max():
             save_filename = f'{year}_{state}_{county}'
             np.save(savedir / save_filename, masked_img_temp[i])
+    if delete_when_done:
+        (image_path / filename).unlink()
+        (temperature_path / filename).unlink()
+        (mask_path / filename).unlink()
     print(f'{filename} array written')
 
 
