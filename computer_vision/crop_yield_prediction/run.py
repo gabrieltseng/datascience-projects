@@ -10,7 +10,7 @@ class RunTask:
 
     @staticmethod
     def export(export_limit=None, major_states_only=True, check_if_done=True, download_folder=None,
-               yield_data_path=Path('data/yield_data.csv')):
+               yield_data_path='data/yield_data.csv'):
         """
         Export all the data necessary to train the models.
 
@@ -29,33 +29,34 @@ class RunTask:
         download_folder: None or pathlib Path, default=None
             Which folder to check for downloaded files, if check_if_done=True. If None, looks
             in data/folder_name
-        yield_data_path: pathlib Path, default=Path('data/yield_data.csv')
+        yield_data_path: str, default='data/yield_data.csv'
             A path to the yield data
         """
+        yield_data_path = Path(yield_data_path)
         exporter = MODISExporter(locations_filepath=yield_data_path)
         exporter.export_all(export_limit, major_states_only, check_if_done,
                             download_folder)
 
     @staticmethod
-    def process(mask_path=Path('data/crop_yield-data_mask'),
-                temperature_path=Path('data/crop_yield-data_temperature'),
-                image_path=Path('data/crop_yield-data_image'), yield_data_path=Path('data/yield_data.csv'),
-                cleaned_data_path=Path('data/img_output'), multiprocessing=True, processes=4, parallelism=6,
-                delete_when_done=True, num_years=14):
+    def process(mask_path='data/crop_yield-data_mask',
+                temperature_path='data/crop_yield-data_temperature',
+                image_path='data/crop_yield-data_image', yield_data_path='data/yield_data.csv',
+                cleaned_data_path='data/img_output', multiprocessing=True, processes=4, parallelism=6,
+                delete_when_done=False, num_years=14):
         """
         Preprocess the data
 
         Parameters
         ----------
-        mask_path: pathlib Path, default=Path('data/crop_yield-data_mask')
+        mask_path: str, default='data/crop_yield-data_mask'
             Path to which the mask tif files have been saved
-        temperature_path: pathlib Path, default=Path('data/crop_yield-data_temperature')
+        temperature_path: str, default='data/crop_yield-data_temperature'
             Path to which the temperature tif files have been saved
-        image_path: pathlib Path, default=Path('data/crop_yield-data_image')
+        image_path: str, default='data/crop_yield-data_image'
             Path to which the image tif files have been saved
-        yield_data_path: pathlib Path, default=Path('data/yield_data.csv')
+        yield_data_path: str, default='data/yield_data.csv'
             Path to the yield data csv file
-        cleaned_data_path: pathlib Path, default=Path('data/img_output')
+        cleaned_data_path: str, default='data/img_output'
             Path to save the data to
         multiprocessing: boolean, default=False
             Whether to use multiprocessing
@@ -69,24 +70,30 @@ class RunTask:
         num_years: int, default=14
             How many years of data to create.
         """
+        mask_path = Path(mask_path)
+        temperature_path = Path(temperature_path)
+        image_path = Path(image_path)
+        yield_data_path = Path(yield_data_path)
+        cleaned_data_path = Path(cleaned_data_path)
+
         cleaner = DataCleaner(mask_path, temperature_path, image_path, yield_data_path,
                               savedir=cleaned_data_path, multiprocessing=multiprocessing,
                               processes=processes, parallelism=parallelism)
         cleaner.process(delete_when_done=delete_when_done, num_years=num_years)
 
     @staticmethod
-    def engineer(cleaned_data_path=Path('data/img_output'), yield_data_path=Path('data/yield_data.csv'),
-                 county_data_path=Path('data/county_data.csv'), num_bins=32, max_bin_val=4999):
+    def engineer(cleaned_data_path='data/img_output', yield_data_path='data/yield_data.csv',
+                 county_data_path='data/county_data.csv', num_bins=32, max_bin_val=4999):
         """
         Take the preprocessed data and generate the input to the models
 
         Parameters
         ----------
-        cleaned_data_path: pathlib Path, default=Path('data/img_output')
+        cleaned_data_path: str, default='data/img_output'
             Path to save the data to, and path to which processed data has been saved
-        yield_data_path: pathlib Path, default=Path('data/yield_data.csv')
+        yield_data_path: str, default='data/yield_data.csv'
             Path to the yield data csv file
-        county_data_path: pathlib Path, default=Path('data/county_data.csv')
+        county_data_path: str, default='data/county_data.csv'
             Path to the county data csv file
         num_bins: int, default=32
             If generate=='histogram', the number of bins to generate in the histogram.
@@ -95,6 +102,10 @@ class RunTask:
             note that the maximum pixel values from the MODIS datsets range from 16000 to
             18000 depending on the band
         """
+        cleaned_data_path = Path(cleaned_data_path)
+        yield_data_path = Path(yield_data_path)
+        county_data_path = Path(county_data_path)
+
         engineer = Engineer(cleaned_data_path, yield_data_path, county_data_path)
         engineer.process(num_bands=9, generate='histogram', num_bins=num_bins, max_bin_val=max_bin_val,
                          channels_first=True)
@@ -109,7 +120,7 @@ class RunTask:
 
         Parameters
         ----------
-        cleaned_data_path: pathlib Path, default=Path('data/img_output')
+        cleaned_data_path: str, default='data/img_output'
             Path to which histogram has been saved
         dropout: float, default=0.25
             Default taken from the original repository
@@ -160,7 +171,7 @@ class RunTask:
             Parameter variance; the variance on B
 
         """
-        histogram_path = cleaned_data_path / 'histogram_all_full.npz'
+        histogram_path = Path(cleaned_data_path) / 'histogram_all_full.npz'
 
         model = ConvModel(in_channels=9, dropout=dropout, out_channels_list=out_channels_list,
                           stride_list=stride_list, dense_features=dense_features, savedir=savedir,
@@ -170,7 +181,7 @@ class RunTask:
                   starter_learning_rate, patience)
 
     @staticmethod
-    def train_rnn(cleaned_data_path=Path('data/img_output'), num_bins=32, hidden_size=128, num_rnn_layers=1,
+    def train_rnn(cleaned_data_path='data/img_output', num_bins=32, hidden_size=128, num_rnn_layers=1,
                   rnn_dropout=0.25, dense_features=None, savedir=Path('data/models'), times=None, pred_years=None,
                   num_runs=2, train_steps=25000, batch_size=32, starter_learning_rate=1e-3, patience=5, use_gp=True,
                   sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
@@ -179,7 +190,7 @@ class RunTask:
 
         Parameters
         ----------
-        cleaned_data_path: pathlib Path, default=Path('data/img_output')
+        cleaned_data_path: str, default='data/img_output'
             Path to which histogram has been saved
         num_bins: int, default=32
             Number of bins in the generated histogram
@@ -230,7 +241,7 @@ class RunTask:
             Parameter variance; the variance on B
 
         """
-        histogram_path = cleaned_data_path / 'histogram_all_full.npz'
+        histogram_path = Path(cleaned_data_path) / 'histogram_all_full.npz'
 
         model = RNNModel(in_channels=9, num_bins=num_bins, hidden_size=hidden_size,
                          num_rnn_layers=num_rnn_layers, rnn_dropout=rnn_dropout, dense_features=dense_features,

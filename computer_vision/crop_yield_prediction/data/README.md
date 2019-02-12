@@ -20,4 +20,6 @@ which we also use to delineate the county borders when exporting the MODIS data 
 its latitude and longitude data, which allows the distance between counties to be approximated. The data can be 
 reproduced at the following [link](https://fusiontables.google.com/data?docid=1S4EB6319wWW2sWQDPhDvmSBIVrD3iEmCLYB7nMM#rows:id=1).
 
+Note that fusion tables will [not be available after December 3rd 2019](https://support.google.com/fusiontables/answer/9185417).
+
 Click on `File`, and then `Download`, and download all rows as a CSV file.

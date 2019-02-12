@@ -1,8 +1,39 @@
+# PyCrop Yield Prediction
+
+A PyTorch implementation of [Jiaxuan You](https://cs.stanford.edu/~jiaxuan/)'s 2017 Crop Yield Prediction Project.
+
+> [Deep Gaussian Process for Crop Yield Prediction Based on Remote Sensing Data](https://cs.stanford.edu/~ermon/papers/cropyield_AAAI17.pdf)
+
+## Introduction
+
+This repo contains a pytorch implementation of the Deep Gaussian Process for Crop Yield Prediction. It draws from the
+original [Tensorflow implementation](https://github.com/JiaxuanYou/crop_yield_prediction).
+
+Neural networks treat each datapoint as independent and identically distributed, making a prediction for each test point
+in isolation. In the case of predicting crop yields, counties are likely to be correlated based on their spatial and
+temporal proximity in a way which the input data may not capture. For instance, soil quality is likely to be similar
+across geographically close counties.
+
+Gaussian Processes make predictions on test points by considering their proximity to training points (where proximity is
+defined in terms of time and space), allowing the model to improve by uncovering spatial and temporal correlations.
+
 ## Setup
 
-Running this code requires you to sign up to [Earth Engine](https://developers.google.com/earth-engine/).
+[Anaconda](https://www.anaconda.com/download/#macos) running python 3.7 is used as the package manager. To get set up
+with an environment, install Anaconda from the link above, and (from this directory) run
 
-Once you have done so, run
+```bash
+conda env create -f environment.yml
+```
+This will create an environment named `crop_yield_prediction` with all the necessary packages to run the code. To 
+activate this environment, run
+
+```bash
+conda activate crop_yield_prediction
+```
+
+Running this code also requires you to sign up to [Earth Engine](https://developers.google.com/earth-engine/). Once you 
+have done so, active the `crop_yield_prediction` environment and run
 
 ```bash
 earthengine authenticate
@@ -17,7 +48,61 @@ python -c "import ee; ee.Initialize()"
 Note that Earth Engine exports files to Google Drive by default (to the same google account used sign up to Earth Engine.)
 
 To download the data used in the paper (MODIS images of the top 11 soybean producing states in the US) requires
-approximately **400 Gb** of storage. I recommend doing this in steps - the export class allows for checkpointing.
+just over **110 Gb** of storage. This can be done in steps - the export class allows for checkpointing.
+
+## Pipeline
+
+The main entrypoint into the pipeline is [`run.py`](run.py). The pipeline is split into 4 major components. Note that
+each component reads files from the previous step, and saves all files that later steps will need, into the 
+[`data`](data) folder.
+
+Parameters which can be passed in each step are documented in [`run.py`](run.py). The default parameters are all taken
+from the original repository.
+
+[Python Fire](https://github.com/google/python-fire) is used to generate command line interfaces.
+
+#### Exporting
+
+```bash
+python run.py export
+```
+
+Exports data from the Google Earth Engine to Google Drive. Note that to make the export more efficient, all the bands
+from a county - across all the export years - are concatenated, reducing the number of files to be exported.
+
+#### Preprocessing
+
+```bash
+python run.py process
+```
+
+Takes the exported and downloaded data, and splits the data by year. In addition, the temperature and reflection `tif` 
+files are merged, and the mask is applied so only farmland is considered. Files are saved as `.npy` files.
+
+The size of the processed files is 
+
+#### Feature Engineering
+
+```bash
+python run.py engineer
+``` 
+Take the processed `.npy` files and generate histogams which can be input into the models. The total size of the `.npy`
+files is **97 GB**. Running with the flag `delete_when_done=True` will delete the `.tif` files as they get processed. 
+
+#### Model training
+
+```bash
+python run.py train_cnn
+```
+and
+```bash
+python run.py train_rnn
+```
+
+Trains CNN and RNN models, respectively, with a Gaussian Process. The trained models are saved in 
+`data/models/<model_type>` and results are saved in csv files in those folders. If a Gaussian Process is used, the
+results of the model without a Gaussian Process are also saved for analysis.
+
 
 ## MODIS datasets
 
@@ -41,11 +126,3 @@ want to consider pixels associated with farmland.
 #### [MYD11A2: Aqua/Land Surface Temperature](https://lpdaac.usgs.gov/dataset_discovery/modis/modis_products_table/myd11a2_v006)
 
 Two more bands which can be used as input data to our models.
-
-## Additional notes so far
-
-The following table is used for county delineations:
-
-* [Copy of United States Counties](https://fusiontables.google.com/data?docid=1S4EB6319wWW2sWQDPhDvmSBIVrD3iEmCLYB7nMM#rows:id=1)
-
-It is hosted on Google's FusionTables, which will [not be available after December 3rd 2019](https://support.google.com/fusiontables/answer/9185417).
