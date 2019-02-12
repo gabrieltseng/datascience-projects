@@ -32,7 +32,8 @@ class RNNModel(ModelBase):
     """
 
     def __init__(self, in_channels=9, num_bins=32, hidden_size=128, num_rnn_layers=1, rnn_dropout=0.25,
-                 dense_features=None, savedir=Path('data/models')):
+                 dense_features=None, savedir=Path('data/models'), use_gp=True,
+                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
 
         model = RNNet(in_channels=in_channels, num_bins=num_bins, hidden_size=hidden_size,
                       num_rnn_layers=num_rnn_layers, rnn_dropout=rnn_dropout,
@@ -45,7 +46,8 @@ class RNNModel(ModelBase):
         model_weight = f'dense_layers.{num_dense_layers - 1}.weight'
         model_bias = f'dense_layers.{num_dense_layers - 1}.bias'
 
-        super().__init__(model, model_weight, model_bias, 'rnn', savedir)
+        super().__init__(model, model_weight, model_bias, 'rnn', savedir, use_gp, sigma, r_loc, r_year,
+                         sigma_e, sigma_b)
 
 
 class RNNet(nn.Module):

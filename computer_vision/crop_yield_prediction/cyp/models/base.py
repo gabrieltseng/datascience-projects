@@ -49,8 +49,8 @@ class ModelBase:
             self.gp = GaussianProcess(sigma, r_loc, r_year, sigma_e, sigma_b)
 
     def run(self, path_to_histogram=Path('data/img_output/histogram_all_full.npz'),
-            times=None, pred_years=None, num_runs=1, train_steps=500, batch_size=32,
-            starter_learning_rate=1e-3):
+            times=None, pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
+            starter_learning_rate=1e-3, patience=5):
         """
         Train the models. Note that multiple models are trained: as per the paper, a model
         is trained for each year, with all preceding years used as training values. In addition,
@@ -62,7 +62,7 @@ class ModelBase:
             The location of the training data
         times: list, or None, default=None
             Which time indices to train the model on. If None, the default values from the paper
-            ([4, 10, 31]) are used.
+            for the full run ([32]) are used.
         pred_years: list or None, default=None
             Which years to build models for. If None, the default values from the paper (range(2009, 2016))
             are used.
@@ -75,6 +75,9 @@ class ModelBase:
         starter_learning_rate: float, default=1e-3
             Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
             steps. Default taken from the paper
+        patience: int or None, default=5
+            The number of epochs to wait without improvement in the validation loss before terminating training.
+            Note that the original repository doesn't use early stopping.
         """
 
         with np.load(path_to_histogram) as hist:
@@ -95,19 +98,19 @@ class ModelBase:
             me_gp_list = []
 
         if pred_years is None:
-            pred_years=[2015]
-            # pred_years = range(2009, 2016)
+            pred_years = range(2009, 2016)
         if times is None:
             times = [32]
             # TODO: doesn't work for convolutions
             # times = range(10, 31, 4)
-            # print(list(times))
+
         for pred_year in pred_years:
             for run_number in range(1, num_runs + 1):
                 for time in times:
                     print(f'Training to predict on {pred_year}, Run number {run_number}')
                     results = self._run_1_year(images, yields, years, locations, indices, pred_year, time,
-                                               run_number, train_steps, batch_size, starter_learning_rate)
+                                               run_number, train_steps, batch_size, starter_learning_rate,
+                                               patience)
                     years_list.append(pred_year)
                     run_numbers.append(run_number)
                     times_list.append(time)
@@ -121,7 +124,7 @@ class ModelBase:
                     me_list.append(me)
 
                 print('-----------')
-        data = {'year': years_list, 'run_number': run_numbers, 'time_idx': times,
+        data = {'year': years_list, 'run_number': run_numbers, 'time_idx': times_list,
                 'RMSE': rmse_list, 'ME': me_list}
         if self.gp is not None:
             data['RMSE_GP'] = rmse_gp_list
@@ -130,7 +133,7 @@ class ModelBase:
         results_df.to_csv(self.savedir / f'{str(datetime.now().date())}.csv', index=False)
 
     def _run_1_year(self, images, yields, years, locations, indices, predict_year, time, run_number,
-                    train_steps, batch_size, starter_learning_rate):
+                    train_steps, batch_size, starter_learning_rate, patience):
         """
         Train one model on one year of data, and then save the model predictions.
         To be called by run().
@@ -160,7 +163,7 @@ class ModelBase:
 
         train_scores, val_scores = self._train(train_images, train_yields, val_images,
                                                val_yields, train_steps, batch_size,
-                                               starter_learning_rate)
+                                               starter_learning_rate, patience)
         results = self._predict(train_images, train_yields, train_locations, train_indices,
                                 val_images, val_yields, val_locations, val_indices,
                                 train_years, val_years, batch_size)
@@ -177,7 +180,6 @@ class ModelBase:
         model_information['model_weight'] = self.model.state_dict()[self.model_weight].numpy()
         model_information['model_bias'] = self.model.state_dict()[self.model_bias].numpy()
 
-        gp_pred = None
         if self.gp is not None:
             print("Running Gaussian Process!")
             gp_pred = self.gp.run(model_information['train_feat'], model_information['val_feat'],
@@ -193,7 +195,7 @@ class ModelBase:
                                     model_information['val_pred_gp'])
 
     def _train(self, train_images, train_yields, val_images, val_yields, train_steps,
-               batch_size, starter_learning_rate):
+               batch_size, starter_learning_rate, patience):
 
         train_dataset = TensorDataset(train_images, train_yields)
         val_dataset = TensorDataset(val_images, val_yields)
@@ -211,6 +213,11 @@ class ModelBase:
 
         train_scores = defaultdict(list)
         val_scores = defaultdict(list)
+
+        if patience is not None:
+            min_loss = np.inf
+            best_state = self.model.state_dict()
+            epochs_without_improvement = 0
 
         for epoch in range(num_epochs):
             self.model.train()
@@ -230,7 +237,7 @@ class ModelBase:
                 train_scores['loss'].append(loss.item())
 
                 step_number += 1
-                if (step_number == 2000) or (step_number == 4000):
+                if (step_number == 4000) or (step_number == 20000):
                     for param_group in optimizer.param_groups:
                         param_group['lr'] /= 10
 
@@ -253,6 +260,21 @@ class ModelBase:
                 val_output_strings.append('{}: {}'.format(key, round(np.array(val).mean(), 5)))
             print('TRAINING: {}'.format(*train_output_strings))
             print('VALIDATION: {}'.format(*val_output_strings))
+
+            if patience is not None:
+                epoch_val_loss = np.array(running_val_scores['loss']).mean()
+                if epoch_val_loss < min_loss:
+                    best_state = self.model.state_dict()
+                    min_loss = epoch_val_loss
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                    if epochs_without_improvement == patience:
+                        # revert to the best state dict
+                        self.model.load_state_dict(best_state)
+                        print('Early stopping!')
+                        break
 
         return train_scores, val_scores
 

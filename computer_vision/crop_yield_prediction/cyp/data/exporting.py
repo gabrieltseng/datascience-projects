@@ -16,8 +16,8 @@ class MODISExporter:
     Parameters
     ----------
 
-    locations_filepath: pathlib Path, default=Path('data/locations_final.csv')
-        A path to the locations being pulled
+    locations_filepath: pathlib Path, default=Path('data/yield_data.csv')
+        A path to the yield data
     collection_id: str, default='MODIS/051/MCD12Q1'
         The ID Earth Engine Image Collection being exported
     """
