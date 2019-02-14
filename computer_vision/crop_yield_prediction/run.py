@@ -113,7 +113,7 @@ class RunTask:
     def train_cnn(self, cleaned_data_path=Path('data/img_output'), dropout=0.25, out_channels_list=None,
                   stride_list=None, dense_features=None, savedir=Path('data/models'),
                   times=None, pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
-                  starter_learning_rate=1e-3, patience=5, use_gp=True,
+                  starter_learning_rate=1e-3, l1_weight=1.5, patience=5, use_gp=True,
                   sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
         """
         Train a CNN model
@@ -135,11 +135,11 @@ class RunTask:
             The length of the list defines how many linear layers are used.
         savedir: pathlib Path, default=Path('data/models')
             The directory into which the models should be saved.
-        times: list, or None, default=None
-            Which time indices to train the model on. If None, the default values from the paper
-            for the full run ([32]) are used.
-        pred_years: list or None, default=None
-            Which years to build models for. If None, the default values from the paper (range(2009, 2016))
+        times: int, or None, default=None
+            Up to which time indices to train the model on. If None, the default values from the paper
+            for the full run (32) are used.
+        pred_years: int or None, default=None
+            Which year to build models for. If None, the default values from the paper (range(2009, 2016))
             are used.
         num_runs: int, default=2
             The number of runs to do per year. Default taken from the paper
@@ -150,6 +150,9 @@ class RunTask:
         starter_learning_rate: float, default=1e-3
             Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
             steps. Default taken from the paper
+        l1_weight: float, default=1.5
+            In addition to MSE, L1 loss is also used. This is the weight to assign to this L1 loss.
+            Default is taken from the paper for soybean
         patience: int or None, default=5
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
@@ -178,13 +181,13 @@ class RunTask:
                           use_gp=use_gp, sigma=sigma, r_loc=r_loc, r_year=r_year, sigma_e=sigma_e,
                           sigma_b=sigma_b)
         model.run(histogram_path, times, pred_years, num_runs, train_steps, batch_size,
-                  starter_learning_rate, patience)
+                  starter_learning_rate, l1_weight, patience)
 
     @staticmethod
     def train_rnn(cleaned_data_path='data/img_output', num_bins=32, hidden_size=128, num_rnn_layers=1,
                   rnn_dropout=0.25, dense_features=None, savedir=Path('data/models'), times=None, pred_years=None,
-                  num_runs=2, train_steps=25000, batch_size=32, starter_learning_rate=1e-3, patience=5, use_gp=True,
-                  sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
+                  num_runs=2, train_steps=25000, batch_size=32, starter_learning_rate=1e-3, l1_weight=1.5, patience=5,
+                  use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
         """
         Train an RNN model
 
@@ -205,10 +208,10 @@ class RunTask:
             The length of the list defines how many linear layers are used.
         savedir: pathlib Path, default=Path('data/models')
             The directory into which the models should be saved.
-        times: list, or None, default=None
+        times: int, or None, default=None
             Which time indices to train the model on. If None, the default values from the paper
-            for the full run ([32]) are used.
-        pred_years: list or None, default=None
+            for the full run (32) are used.
+        pred_years: int or None, default=None
             Which years to build models for. If None, the default values from the paper (range(2009, 2016))
             are used.
         num_runs: int, default=2
@@ -220,6 +223,9 @@ class RunTask:
         starter_learning_rate: float, default=1e-3
             Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
             steps. Default taken from the paper
+        l1_weight: float, default=1.5
+            In addition to MSE, L1 loss is also used. This is the weight to assign to this L1 loss.
+            Default is taken from the paper for soybean
         patience: int or None, default=5
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
@@ -248,7 +254,7 @@ class RunTask:
                          savedir=savedir, use_gp=use_gp, sigma=sigma, r_loc=r_loc, r_year=r_year,
                          sigma_e=sigma_e, sigma_b=sigma_b)
         model.run(histogram_path, times, pred_years, num_runs, train_steps, batch_size,
-                  starter_learning_rate, patience)
+                  starter_learning_rate, l1_weight, patience)
 
 
 if __name__ == '__main__':

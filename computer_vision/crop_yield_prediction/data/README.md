@@ -23,3 +23,9 @@ reproduced at the following [link](https://fusiontables.google.com/data?docid=1S
 Note that fusion tables will [not be available after December 3rd 2019](https://support.google.com/fusiontables/answer/9185417).
 
 Click on `File`, and then `Download`, and download all rows as a CSV file.
+
+#### [`counties.svg`](counties.svg)
+
+A map of the U.S., with county delineations. Taken from the 
+[original repository](https://github.com/JiaxuanYou/crop_yield_prediction/blob/master/6%20result_analysis/counties.svg), 
+and useful for analysis.

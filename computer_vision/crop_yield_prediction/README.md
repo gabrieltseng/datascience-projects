@@ -17,6 +17,8 @@ across geographically close counties.
 Gaussian Processes make predictions on test points by considering their proximity to training points (where proximity is
 defined in terms of time and space), allowing the model to improve by uncovering spatial and temporal correlations.
 
+In this pipeline, a Deep Gaussian Process is used to predict soybean yields in US counties.
+
 ## Setup
 
 [Anaconda](https://www.anaconda.com/download/#macos) running python 3.7 is used as the package manager. To get set up

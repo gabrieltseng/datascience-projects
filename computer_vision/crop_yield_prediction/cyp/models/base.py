@@ -50,7 +50,7 @@ class ModelBase:
 
     def run(self, path_to_histogram=Path('data/img_output/histogram_all_full.npz'),
             times=None, pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
-            starter_learning_rate=1e-3, patience=5):
+            starter_learning_rate=1e-3, l1_weight=1.5, patience=5):
         """
         Train the models. Note that multiple models are trained: as per the paper, a model
         is trained for each year, with all preceding years used as training values. In addition,
@@ -60,10 +60,10 @@ class ModelBase:
         ----------
         path_to_histogram: pathlib Path, default=Path('data/img_output/histogram_all_full.npz')
             The location of the training data
-        times: list, or None, default=None
+        times: int, list, or None, default=None
             Which time indices to train the model on. If None, the default values from the paper
             for the full run ([32]) are used.
-        pred_years: list or None, default=None
+        pred_years: int, list or None, default=None
             Which years to build models for. If None, the default values from the paper (range(2009, 2016))
             are used.
         num_runs: int, default=2
@@ -75,6 +75,9 @@ class ModelBase:
         starter_learning_rate: float, default=1e-3
             Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
             steps. Default taken from the paper
+        l1_weight: float, default=5
+            In addition to MSE, L1 loss is also used. This is the weight to assign to this L1 loss.
+            Default is taken from the paper for soybean
         patience: int or None, default=5
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
@@ -99,10 +102,15 @@ class ModelBase:
 
         if pred_years is None:
             pred_years = range(2009, 2016)
+        elif type(pred_years) is int:
+            pred_years = [pred_years]
+
         if times is None:
             times = [32]
             # TODO: doesn't work for convolutions
             # times = range(10, 31, 4)
+        elif type(times) is int:
+            times = [times]
 
         for pred_year in pred_years:
             for run_number in range(1, num_runs + 1):
@@ -110,7 +118,7 @@ class ModelBase:
                     print(f'Training to predict on {pred_year}, Run number {run_number}')
                     results = self._run_1_year(images, yields, years, locations, indices, pred_year, time,
                                                run_number, train_steps, batch_size, starter_learning_rate,
-                                               patience)
+                                               l1_weight, patience)
                     years_list.append(pred_year)
                     run_numbers.append(run_number)
                     times_list.append(time)
@@ -130,10 +138,10 @@ class ModelBase:
             data['RMSE_GP'] = rmse_gp_list
             data['ME_GP'] = me_gp_list
         results_df = pd.DataFrame(data=data)
-        results_df.to_csv(self.savedir / f'{str(datetime.now().date())}.csv', index=False)
+        results_df.to_csv(self.savedir / f'{str(datetime.now())}.csv', index=False)
 
     def _run_1_year(self, images, yields, years, locations, indices, predict_year, time, run_number,
-                    train_steps, batch_size, starter_learning_rate, patience):
+                    train_steps, batch_size, starter_learning_rate, l1_weight, patience):
         """
         Train one model on one year of data, and then save the model predictions.
         To be called by run().
@@ -163,7 +171,7 @@ class ModelBase:
 
         train_scores, val_scores = self._train(train_images, train_yields, val_images,
                                                val_yields, train_steps, batch_size,
-                                               starter_learning_rate, patience)
+                                               starter_learning_rate, l1_weight, patience)
         results = self._predict(train_images, train_yields, train_locations, train_indices,
                                 val_images, val_yields, val_locations, val_indices,
                                 train_years, val_years, batch_size)
@@ -195,7 +203,7 @@ class ModelBase:
                                     model_information['val_pred_gp'])
 
     def _train(self, train_images, train_yields, val_images, val_yields, train_steps,
-               batch_size, starter_learning_rate, patience):
+               batch_size, starter_learning_rate, l1_weight, patience):
 
         train_dataset = TensorDataset(train_images, train_yields)
         val_dataset = TensorDataset(val_images, val_yields)
@@ -203,7 +211,8 @@ class ModelBase:
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
-        criterion = nn.MSELoss()  # TODO: L1 loss as well?
+        l2_crit = nn.MSELoss()
+        l1_crit = nn.L1Loss()
         optimizer = torch.optim.Adam([pam for pam in self.model.parameters()],
                                       lr=starter_learning_rate)
 
@@ -229,11 +238,17 @@ class ModelBase:
             for train_x, train_y in tqdm(train_dataloader):
                 optimizer.zero_grad()
                 pred_y = self.model(train_x)
-                loss = criterion(pred_y, train_y)
+                l2 = l2_crit(pred_y, train_y)
+                l1 = l1_crit(pred_y, train_y)
+
+                loss = (l1_weight * l1) + l2
                 loss.backward()
                 optimizer.step()
 
                 running_train_scores['loss'].append(loss.item())
+                running_train_scores['l1'].append(l1.item())
+                running_train_scores['l2'].append(l2.item())
+
                 train_scores['loss'].append(loss.item())
 
                 step_number += 1
@@ -250,16 +265,21 @@ class ModelBase:
             with torch.no_grad():
                 for val_x, val_y, in tqdm(val_dataloader):
                     val_pred_y = self.model(val_x)
-                    val_loss = criterion(val_pred_y, val_y)
+                    val_l2 = l2_crit(val_pred_y, val_y)
+                    val_l1 = l1_crit(val_pred_y, val_y)
+
+                    val_loss = (l1_weight * val_l1) + val_l2
                     running_val_scores['loss'].append(val_loss.item())
+                    running_val_scores['l1'].append(val_l1.item())
+                    running_val_scores['l2'].append(val_l2.item())
 
                     val_scores['loss'].append(val_loss.item())
 
             val_output_strings = []
             for key, val in running_val_scores.items():
                 val_output_strings.append('{}: {}'.format(key, round(np.array(val).mean(), 5)))
-            print('TRAINING: {}'.format(*train_output_strings))
-            print('VALIDATION: {}'.format(*val_output_strings))
+            print('TRAINING: {}, {}, {}'.format(*train_output_strings))
+            print('VALIDATION: {}, {}, {}'.format(*val_output_strings))
 
             if patience is not None:
                 epoch_val_loss = np.array(running_val_scores['loss']).mean()
