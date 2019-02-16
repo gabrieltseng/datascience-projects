@@ -1,8 +1,8 @@
 import torch
 from bs4 import BeautifulSoup
 from pathlib import Path
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 
 def plot_county_errors(model, svg_file=Path('data/counties.svg'), save_colorbar=True):
@@ -18,6 +18,8 @@ def plot_county_errors(model, svg_file=Path('data/counties.svg'), save_colorbar=
         Path to the model being plotted.
     svg_file: pathlib Path, default=Path('data/counties.svg')
         Path to the counties svg file used as a base
+    save_colorbar: boolean, default=True
+        Whether to save a colorbar too.
     """
 
     model_sd = torch.load(model)
@@ -113,24 +115,23 @@ def _single_plot(err_dict, svg_file, savepath, colors):
 
 def _save_colorbar(savedir, colors):
     fig = plt.figure()
-    ax2 = fig.add_axes([0.1, 0.1, 0.8, 0.04])
+    ax = fig.add_axes([0.1, 0.1, 0.02, 0.8])
 
-    cmap = mpl.colors.ListedColormap(colors)
+    cmap = mpl.colors.ListedColormap(colors[1:-1])
 
-    # TODO set the over and under
-    cmap.set_over('#a50026')
-    cmap.set_under('#313695')
+    cmap.set_over(colors[-1])
+    cmap.set_under(colors[0])
 
-    bounds = [-15, 10, 5, 0, 5, 10, 15]
+    bounds = [-15, -10, -5, 0, 5, 10, 15]
 
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
-    cb2 = mpl.colorbar.ColorbarBase(ax2, cmap=cmap,
-                                    norm=norm,
-                                    # to use 'extend', you must
-                                    # specify two extra boundaries:
-                                    boundaries=[0] + bounds + [220],
-                                    extend='both',
-                                    ticks=bounds,  # optional
-                                    spacing='proportional',
-                                    orientation='horizontal')
+    cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                   norm=norm,
+                                   # to use 'extend', you must
+                                   # specify two extra boundaries:
+                                   boundaries=[-20] + bounds + [20],
+                                   extend='both',
+                                   ticks=bounds,  # optional
+                                   spacing='proportional',
+                                   orientation='vertical')
     plt.savefig(savedir, dpi=300, bbox_inches='tight')
