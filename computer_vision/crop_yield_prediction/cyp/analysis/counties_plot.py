@@ -1,9 +1,11 @@
 import torch
 from bs4 import BeautifulSoup
 from pathlib import Path
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 
-def plot_county_errors(model, svg_file=Path('data/counties.svg')):
+def plot_county_errors(model, svg_file=Path('data/counties.svg'), save_colorbar=True):
     """
     For the most part, reformatting of
     https://github.com/JiaxuanYou/crop_yield_prediction/blob/master/6%20result_analysis/yield_map.py
@@ -45,7 +47,9 @@ def plot_county_errors(model, svg_file=Path('data/counties.svg')):
 
     model_info = model.name[:-8].split('_')
 
-    _single_plot(pred_dict, svg_file, model_dir / f'{model_info[0]}_{model_info[1]}.svg')
+    colors = ["#b2182b", "#d6604d", "#f4a582", "#fddbc7", "#d1e5f0", "#92c5de", "#4393c3", "#2166ac"]
+
+    _single_plot(pred_dict, svg_file, model_dir / f'{model_info[0]}_{model_info[1]}.svg', colors)
 
     if gp:
         gp_pred_err = gp_values - real_values
@@ -58,22 +62,24 @@ def plot_county_errors(model, svg_file=Path('data/counties.svg')):
 
             gp_dict[state + county] = err
 
-    _single_plot(gp_dict, svg_file, model_dir / f'{model_info[0]}_{model_info[1]}_gp.svg')
+    _single_plot(gp_dict, svg_file, model_dir / f'{model_info[0]}_{model_info[1]}_gp.svg', colors)
+
+    if save_colorbar:
+        _save_colorbar(model_dir / 'colorbar.png', colors)
 
 
-def _single_plot(err_dict, svg_file, savepath):
+def _single_plot(err_dict, svg_file, savepath, colors):
 
     # load the svg file
     svg = svg_file.open('r').read()
     # Load into Beautiful Soup
-    soup = BeautifulSoup(svg)
+    soup = BeautifulSoup(svg, features="html.parser")
     # Find counties
     paths = soup.findAll('path')
 
     path_style = 'font-size:12px;fill-rule:nonzero;stroke:#FFFFFF;stroke-opacity:1;stroke-width:0.1' \
                  ';stroke-miterlimit:4;stroke-dasharray:none;stroke-linecap:butt;marker-start' \
                  ':none;stroke-linejoin:bevel;fill:'
-    colors = ["#b2182b", "#d6604d", "#f4a582", "#fddbc7", "#d1e5f0", "#92c5de", "#4393c3", "#2166ac"]
 
     for p in paths:
         if p['id'] not in ["State_Lines", "separator"]:
@@ -103,3 +109,28 @@ def _single_plot(err_dict, svg_file, savepath):
     soup = soup.prettify()
     with savepath.open('w') as f:
         f.write(soup)
+
+
+def _save_colorbar(savedir, colors):
+    fig = plt.figure()
+    ax2 = fig.add_axes([0.1, 0.1, 0.8, 0.04])
+
+    cmap = mpl.colors.ListedColormap(colors)
+
+    # TODO set the over and under
+    cmap.set_over('#a50026')
+    cmap.set_under('#313695')
+
+    bounds = [-15, 10, 5, 0, 5, 10, 15]
+
+    norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+    cb2 = mpl.colorbar.ColorbarBase(ax2, cmap=cmap,
+                                    norm=norm,
+                                    # to use 'extend', you must
+                                    # specify two extra boundaries:
+                                    boundaries=[0] + bounds + [220],
+                                    extend='both',
+                                    ticks=bounds,  # optional
+                                    spacing='proportional',
+                                    orientation='horizontal')
+    plt.savefig(savedir, dpi=300, bbox_inches='tight')

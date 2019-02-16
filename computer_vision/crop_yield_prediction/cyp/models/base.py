@@ -1,5 +1,4 @@
 import torch
-from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 
 from pathlib import Path
@@ -10,6 +9,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 from .gp import GaussianProcess
+from .loss import regularized_mse
 
 
 class ModelBase:
@@ -83,6 +83,8 @@ class ModelBase:
             Note that the original repository doesn't use early stopping.
         """
 
+        # TODO: run on GPU if available
+
         with np.load(path_to_histogram) as hist:
             images = hist['output_image']
             locations = hist['output_locations']
@@ -116,12 +118,19 @@ class ModelBase:
             for run_number in range(1, num_runs + 1):
                 for time in times:
                     print(f'Training to predict on {pred_year}, Run number {run_number}')
-                    results = self._run_1_year(images, yields, years, locations, indices, pred_year, time,
-                                               run_number, train_steps, batch_size, starter_learning_rate,
+
+                    results = self._run_1_year(images, yields,
+                                               years, locations,
+                                               indices, pred_year,
+                                               time, run_number,
+                                               train_steps, batch_size,
+                                               starter_learning_rate,
                                                l1_weight, patience)
+
                     years_list.append(pred_year)
                     run_numbers.append(run_number)
                     times_list.append(time)
+
                     if self.gp is not None:
                         rmse, me, rmse_gp, me_gp = results
                         rmse_gp_list.append(rmse_gp)
@@ -169,12 +178,18 @@ class ModelBase:
         # times in one call to run()
         self.model.initialize_weights()
 
-        train_scores, val_scores = self._train(train_images, train_yields, val_images,
-                                               val_yields, train_steps, batch_size,
-                                               starter_learning_rate, l1_weight, patience)
-        results = self._predict(train_images, train_yields, train_locations, train_indices,
-                                val_images, val_yields, val_locations, val_indices,
-                                train_years, val_years, batch_size)
+        train_scores, val_scores = self._train(train_images, train_yields,
+                                               val_images, val_yields,
+                                               train_steps, batch_size,
+                                               starter_learning_rate,
+                                               l1_weight, patience)
+
+        results = self._predict(train_images, train_yields,
+                                train_locations, train_indices,
+                                val_images, val_yields,
+                                val_locations, val_indices,
+                                train_years, val_years,
+                                batch_size)
 
         model_information = {
             'state_dict': self.model.state_dict(),
@@ -190,10 +205,14 @@ class ModelBase:
 
         if self.gp is not None:
             print("Running Gaussian Process!")
-            gp_pred = self.gp.run(model_information['train_feat'], model_information['val_feat'],
-                                  model_information['train_loc'], model_information['val_loc'],
-                                  model_information['train_years'], model_information['val_years'],
-                                  model_information['train_real'], model_information['model_weight'],
+            gp_pred = self.gp.run(model_information['train_feat'],
+                                  model_information['val_feat'],
+                                  model_information['train_loc'],
+                                  model_information['val_loc'],
+                                  model_information['train_years'],
+                                  model_information['val_years'],
+                                  model_information['train_real'],
+                                  model_information['model_weight'],
                                   model_information['model_bias'])
             model_information['val_pred_gp'] = gp_pred.squeeze(1)
 
@@ -204,6 +223,8 @@ class ModelBase:
 
     def _train(self, train_images, train_yields, val_images, val_yields, train_steps,
                batch_size, starter_learning_rate, l1_weight, patience):
+        """Defines the training loop for a model
+        """
 
         train_dataset = TensorDataset(train_images, train_yields)
         val_dataset = TensorDataset(val_images, val_yields)
@@ -211,10 +232,8 @@ class ModelBase:
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
-        l2_crit = nn.MSELoss()
-        l1_crit = nn.L1Loss()
         optimizer = torch.optim.Adam([pam for pam in self.model.parameters()],
-                                      lr=starter_learning_rate)
+                                     lr=starter_learning_rate)
 
         num_epochs = int(train_steps / (train_images.shape[0] / batch_size))
         print(f'Training for {num_epochs} epochs')
@@ -238,16 +257,11 @@ class ModelBase:
             for train_x, train_y in tqdm(train_dataloader):
                 optimizer.zero_grad()
                 pred_y = self.model(train_x)
-                l2 = l2_crit(pred_y, train_y)
-                l1 = l1_crit(pred_y, train_y)
 
-                loss = (l1_weight * l1) + l2
+                loss, running_train_scores = regularized_mse(pred_y, train_y, l1_weight,
+                                                             running_train_scores)
                 loss.backward()
                 optimizer.step()
-
-                running_train_scores['loss'].append(loss.item())
-                running_train_scores['l1'].append(l1.item())
-                running_train_scores['l2'].append(l2.item())
 
                 train_scores['loss'].append(loss.item())
 
@@ -265,21 +279,17 @@ class ModelBase:
             with torch.no_grad():
                 for val_x, val_y, in tqdm(val_dataloader):
                     val_pred_y = self.model(val_x)
-                    val_l2 = l2_crit(val_pred_y, val_y)
-                    val_l1 = l1_crit(val_pred_y, val_y)
 
-                    val_loss = (l1_weight * val_l1) + val_l2
-                    running_val_scores['loss'].append(val_loss.item())
-                    running_val_scores['l1'].append(val_l1.item())
-                    running_val_scores['l2'].append(val_l2.item())
+                    val_loss, running_val_scores = regularized_mse(val_pred_y, val_y, l1_weight,
+                                                                   running_val_scores)
 
                     val_scores['loss'].append(val_loss.item())
 
             val_output_strings = []
             for key, val in running_val_scores.items():
                 val_output_strings.append('{}: {}'.format(key, round(np.array(val).mean(), 5)))
-            print('TRAINING: {}, {}, {}'.format(*train_output_strings))
-            print('VALIDATION: {}, {}, {}'.format(*val_output_strings))
+            print('TRAINING: {}'.format(', '.join(train_output_strings)))
+            print('VALIDATION: {}'.format(', '.join(val_output_strings)))
 
             if patience is not None:
                 epoch_val_loss = np.array(running_val_scores['loss']).mean()

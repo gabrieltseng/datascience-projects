@@ -1,4 +1,5 @@
 from torch import nn
+import torch
 
 import math
 from pathlib import Path
@@ -20,10 +21,10 @@ class RNNModel(ModelBase):
         Number of bins in the histogram
     hidden_size: int, default=128
         The size of the hidden state. Default taken from the original repository
-    num_rnn_layers: int, default=1
-        Number of recurrent layers. Default taken from the original repository
     rnn_dropout: float, default=0.25
-        Default taken from the original repository (note, this is 1 - keep_prob)
+        Default taken from the original repository (note, this is 1 - keep_prob). Note too that this
+        dropout is applied to the hidden state after each timestep, not after each layer (since there
+        is only one layer)
     dense_features: list, or None, default=None.
         output feature size of the Linear layers. If None, default values will be taken from the paper.
         The length of the list defines how many linear layers are used.
@@ -31,12 +32,12 @@ class RNNModel(ModelBase):
         The directory into which the models should be saved.
     """
 
-    def __init__(self, in_channels=9, num_bins=32, hidden_size=128, num_rnn_layers=1, rnn_dropout=0.25,
+    def __init__(self, in_channels=9, num_bins=32, hidden_size=128, rnn_dropout=0.25,
                  dense_features=None, savedir=Path('data/models'), use_gp=True,
                  sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
 
         model = RNNet(in_channels=in_channels, num_bins=num_bins, hidden_size=hidden_size,
-                      num_rnn_layers=num_rnn_layers, rnn_dropout=rnn_dropout,
+                      num_rnn_layers=1, rnn_dropout=rnn_dropout,
                       dense_features=dense_features)
 
         if dense_features is None:
@@ -64,13 +65,17 @@ class RNNet(nn.Module):
             dense_features = [256, 1]
         dense_features.insert(0, hidden_size)
 
-        self.rnn = nn.LSTM(input_size=in_channels * num_bins, hidden_size=hidden_size,
-                           num_layers=num_rnn_layers, dropout=rnn_dropout, batch_first=True)
+        self.dropout = nn.Dropout(rnn_dropout)
+        self.rnn = nn.LSTM(input_size=in_channels * num_bins,
+                           hidden_size=hidden_size,
+                           num_layers=num_rnn_layers,
+                           batch_first=True)
         self.hidden_size = hidden_size
 
         self.dense_layers = nn.ModuleList([
             nn.Linear(in_features=dense_features[i-1],
-                      out_features=dense_features[i]) for i in range(1, len(dense_features))
+                      out_features=dense_features[i])
+            for i in range(1, len(dense_features))
         ])
 
         self.initialize_weights()
@@ -96,8 +101,23 @@ class RNNet(nn.Module):
         # Reshape to [batch, times, bands * bins]
         x = x.permute(0, 2, 1, 3).contiguous()
         x = x.view(x.shape[0], x.shape[1], x.shape[2] * x.shape[3])
-        x, _ = self.rnn(x)
-        x = x[:, -1, :]
+
+        sequence_length = x.shape[1]
+
+        hidden_state = torch.zeros(1, x.shape[0], self.hidden_size)
+        cell_state = torch.zeros(1, x.shape[0], self.hidden_size)
+
+        for i in range(sequence_length):
+            # The reason the RNN is unrolled here is to apply dropout to each timestep;
+            # The rnn_dropout argument only applies it after each layer. This better mirrors
+            # the behaviour of the Dropout Wrapper used in the original repository
+            # https://www.tensorflow.org/api_docs/python/tf/nn/rnn_cell/DropoutWrapper
+            input_x = x[:, i, :].unsqueeze(1)
+            _, (hidden_state, cell_state) = self.rnn(input_x,
+                                                     (hidden_state, cell_state))
+            hidden_state = self.dropout(hidden_state)
+
+        x = hidden_state.squeeze(0)
         for layer_number, dense_layer in enumerate(self.dense_layers):
             x = dense_layer(x)
             if return_last_dense and (layer_number == len(self.dense_layers) - 2):

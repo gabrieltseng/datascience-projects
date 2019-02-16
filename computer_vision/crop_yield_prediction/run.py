@@ -184,9 +184,9 @@ class RunTask:
                   starter_learning_rate, l1_weight, patience)
 
     @staticmethod
-    def train_rnn(cleaned_data_path='data/img_output', num_bins=32, hidden_size=128, num_rnn_layers=1,
+    def train_rnn(cleaned_data_path='data/img_output', num_bins=32, hidden_size=128,
                   rnn_dropout=0.25, dense_features=None, savedir=Path('data/models'), times=None, pred_years=None,
-                  num_runs=2, train_steps=25000, batch_size=32, starter_learning_rate=1e-3, l1_weight=1.5, patience=5,
+                  num_runs=2, train_steps=10000, batch_size=32, starter_learning_rate=1e-3, l1_weight=0, patience=5,
                   use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
         """
         Train an RNN model
@@ -199,10 +199,10 @@ class RunTask:
             Number of bins in the generated histogram
         hidden_size: int, default=128
             The size of the hidden state. Default taken from the original repository
-        num_rnn_layers: int, default=1
-            Number of recurrent layers. Default taken from the original repository
         rnn_dropout: float, default=0.25
-            Default taken from the original repository (note, this is 1 - keep_prob)
+            Default taken from the original repository (note, this is 1 - keep_prob). Note too that this
+            dropout is applied to the hidden state after each timestep, not after each layer (since there
+            is only one layer)
         dense_features: list, or None, default=None.
             output feature size of the Linear layers. If None, default values will be taken from the paper.
             The length of the list defines how many linear layers are used.
@@ -216,16 +216,15 @@ class RunTask:
             are used.
         num_runs: int, default=2
             The number of runs to do per year. Default taken from the paper
-        train_steps: int, default=25000
+        train_steps: int, default=10000
             The number of steps for which to train the model. Default taken from the paper.
         batch_size: int, default=32
             Batch size when training. Default taken from the paper
         starter_learning_rate: float, default=1e-3
             Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
             steps. Default taken from the paper
-        l1_weight: float, default=1.5
-            In addition to MSE, L1 loss is also used. This is the weight to assign to this L1 loss.
-            Default is taken from the paper for soybean
+        l1_weight: float, default=0
+            L1 loss is not used for the RNN. Setting it to 0 avoids it being computed.
         patience: int or None, default=5
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
@@ -250,7 +249,7 @@ class RunTask:
         histogram_path = Path(cleaned_data_path) / 'histogram_all_full.npz'
 
         model = RNNModel(in_channels=9, num_bins=num_bins, hidden_size=hidden_size,
-                         num_rnn_layers=num_rnn_layers, rnn_dropout=rnn_dropout, dense_features=dense_features,
+                         rnn_dropout=rnn_dropout, dense_features=dense_features,
                          savedir=savedir, use_gp=use_gp, sigma=sigma, r_loc=r_loc, r_year=r_year,
                          sigma_e=sigma_e, sigma_b=sigma_b)
         model.run(histogram_path, times, pred_years, num_runs, train_steps, batch_size,

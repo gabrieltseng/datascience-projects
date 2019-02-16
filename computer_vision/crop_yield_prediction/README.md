@@ -9,8 +9,8 @@ This paper won the Food Security Category from the World Bank's
 
 ## Introduction
 
-This repo contains a pytorch implementation of the Deep Gaussian Process for Crop Yield Prediction. It draws from the
-original [Tensorflow implementation](https://github.com/JiaxuanYou/crop_yield_prediction).
+This repo contains a PyTorch implementation of the Deep Gaussian Process for Crop Yield Prediction. It draws from the
+original [TensorFlow implementation](https://github.com/JiaxuanYou/crop_yield_prediction).
 
 Deep Gaussian Processes combine the expressivity of Deep Neural Networks with Gaussian Processes' ability to leverage
 spatial and temporal correlations between data points.
@@ -36,6 +36,9 @@ python run.py export
 
 Exports data from the Google Earth Engine to Google Drive. Note that to make the export more efficient, all the bands
 from a county - across all the export years - are concatenated, reducing the number of files to be exported.
+
+To download the data used in the paper ([MODIS](data/README.md#MODIS) images of the top 11 soybean producing states in the US) requires
+just over **110 Gb** of storage. This can be done in steps - the export class allows for checkpointing.
 
 #### Preprocessing
 
@@ -99,6 +102,3 @@ python -c "import ee; ee.Initialize()"
 ```
 
 Note that Earth Engine exports files to Google Drive by default (to the same google account used sign up to Earth Engine.)
-
-To download the data used in the paper ([MODIS](data/README.md#MODIS) images of the top 11 soybean producing states in the US) requires
-just over **110 Gb** of storage. This can be done in steps - the export class allows for checkpointing.
