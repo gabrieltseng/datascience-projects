@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 from pathlib import Path
 
@@ -27,11 +28,15 @@ class ConvModel(ModelBase):
         The length of the list defines how many linear layers are used.
     savedir: pathlib Path, default=Path('data/models')
         The directory into which the models should be saved.
+    device: torch.device
+        Device to run model on. By default, checks for a GPU. If none exists, uses
+        the CPU
     """
 
     def __init__(self, in_channels=9, dropout=0.25, out_channels_list=None, stride_list=None,
                  dense_features=None, savedir=Path('data/models'), use_gp=True,
-                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
+                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01,
+                 device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
 
         model = ConvNet(in_channels=in_channels, dropout=dropout,
                         out_channels_list=out_channels_list, stride_list=stride_list,
@@ -45,7 +50,7 @@ class ConvModel(ModelBase):
         model_bias = f'dense_layers.{num_dense_layers - 1}.bias'
 
         super().__init__(model, model_weight, model_bias, 'cnn', savedir, use_gp, sigma, r_loc,
-                         r_year, sigma_e, sigma_b)
+                         r_year, sigma_e, sigma_b, device)
 
 
 class ConvNet(nn.Module):

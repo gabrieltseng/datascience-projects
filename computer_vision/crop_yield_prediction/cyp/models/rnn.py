@@ -30,11 +30,15 @@ class RNNModel(ModelBase):
         The length of the list defines how many linear layers are used.
     savedir: pathlib Path, default=Path('data/models')
         The directory into which the models should be saved.
+    device: torch.device
+        Device to run model on. By default, checks for a GPU. If none exists, uses
+        the CPU
     """
 
     def __init__(self, in_channels=9, num_bins=32, hidden_size=128, rnn_dropout=0.25,
                  dense_features=None, savedir=Path('data/models'), use_gp=True,
-                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
+                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01,
+                 device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
 
         model = RNNet(in_channels=in_channels, num_bins=num_bins, hidden_size=hidden_size,
                       num_rnn_layers=1, rnn_dropout=rnn_dropout,
@@ -48,7 +52,7 @@ class RNNModel(ModelBase):
         model_bias = f'dense_layers.{num_dense_layers - 1}.bias'
 
         super().__init__(model, model_weight, model_bias, 'rnn', savedir, use_gp, sigma, r_loc, r_year,
-                         sigma_e, sigma_b)
+                         sigma_e, sigma_b, device)
 
 
 class RNNet(nn.Module):
@@ -106,6 +110,10 @@ class RNNet(nn.Module):
 
         hidden_state = torch.zeros(1, x.shape[0], self.hidden_size)
         cell_state = torch.zeros(1, x.shape[0], self.hidden_size)
+
+        if x.is_cuda:
+            hidden_state = hidden_state.cuda()
+            cell_state = cell_state.cuda()
 
         for i in range(sequence_length):
             # The reason the RNN is unrolled here is to apply dropout to each timestep;

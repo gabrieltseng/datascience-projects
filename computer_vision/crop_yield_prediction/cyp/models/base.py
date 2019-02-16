@@ -15,34 +15,22 @@ from .loss import regularized_mse
 class ModelBase:
     """
     Base class for all models
-
-    Parameters
-    ----------
-        use_gp: boolean, default=True
-            Whether to use a Gaussian process in addition to the model
-
-        If use_gp=True, the following parameters are also used:
-
-        sigma: float, default=1
-            The kernel variance, or the signal variance
-        r_loc: float, default=0.5
-            The length scale for the location data (latitudes and longitudes)
-        r_year: float, default=1.5
-            The length scale for the time data (years)
-        sigma_e: float, default=0.01
-            Noise variance
-        sigma_b: float, default=0.01
-            Parameter variance; the variance on B
     """
     def __init__(self, model, model_weight, model_bias, model_type, savedir, use_gp=True,
-                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
+                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01,
+                 device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         self.savedir = savedir / model_type
         self.savedir.mkdir(parents=True, exist_ok=True)
 
+        print(f'Using {device.type}')
+        if device.type != 'cpu':
+            model = model.cuda()
         self.model = model
         self.model_type = model_type
         self.model_weight = model_weight
         self.model_bias = model_bias
+
+        self.device = device
 
         self.gp = None
         if use_gp:
@@ -82,8 +70,6 @@ class ModelBase:
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
         """
-
-        # TODO: run on GPU if available
 
         with np.load(path_to_histogram) as hist:
             images = hist['output_image']
@@ -162,17 +148,17 @@ class ModelBase:
 
         print(f'Train set size: {train_idx.shape[0]}, Val set size: {val_idx.shape[0]}')
 
-        train_images = torch.tensor(train_images[:, :, :time, :]).float()
-        train_yields = torch.tensor(yields[train_idx]).float().unsqueeze(1)
-        train_locations = torch.tensor(locations[train_idx])
-        train_indices = torch.tensor(indices[train_idx])
-        train_years = torch.tensor(years[train_idx])
+        train_images = torch.as_tensor(train_images[:, :, :time, :], device=self.device).float()
+        train_yields = torch.as_tensor(yields[train_idx], device=self.device).float().unsqueeze(1)
+        train_locations = torch.as_tensor(locations[train_idx])
+        train_indices = torch.as_tensor(indices[train_idx])
+        train_years = torch.as_tensor(years[train_idx])
 
-        val_images = torch.tensor(val_images[:, :, :time, :]).float()
-        val_yields = torch.tensor(yields[val_idx]).float().unsqueeze(1)
-        val_locations = torch.tensor(locations[val_idx])
-        val_indices = torch.tensor(indices[val_idx])
-        val_years = torch.tensor(years[val_idx])
+        val_images = torch.as_tensor(val_images[:, :, :time, :], device=self.device).float()
+        val_yields = torch.as_tensor(yields[val_idx], device=self.device).float().unsqueeze(1)
+        val_locations = torch.as_tensor(locations[val_idx])
+        val_indices = torch.as_tensor(indices[val_idx])
+        val_years = torch.as_tensor(years[val_idx])
 
         # reinitialize the weights, since self.model may be trained multiple
         # times in one call to run()
@@ -200,8 +186,14 @@ class ModelBase:
             model_information[key] = results[key]
 
         # finally, get the relevant weights for the Gaussian Process
-        model_information['model_weight'] = self.model.state_dict()[self.model_weight].numpy()
-        model_information['model_bias'] = self.model.state_dict()[self.model_bias].numpy()
+        if self.model.state_dict()[self.model_weight].device != 'cpu':
+            model_weight = self.model.state_dict()[self.model_weight].cpu()
+            model_bias = self.model.state_dict()[self.model_bias].cpu()
+        else:
+            model_weight = self.model.state_dict()[self.model_weight]
+            model_bias = self.model.state_dict()[self.model_bias]
+        model_information['model_weight'] = model_weight.numpy()
+        model_information['model_bias'] = model_bias.numpy()
 
         if self.gp is not None:
             print("Running Gaussian Process!")
@@ -225,6 +217,7 @@ class ModelBase:
                batch_size, starter_learning_rate, l1_weight, patience):
         """Defines the training loop for a model
         """
+        print(train_images.device)
 
         train_dataset = TensorDataset(train_images, train_yields)
         val_dataset = TensorDataset(val_images, val_yields)
@@ -331,6 +324,8 @@ class ModelBase:
                                           return_last_dense=True if (self.gp is not None) else False)
                 if self.gp is not None:
                     pred, feat = model_output
+                    if feat.device != 'cpu':
+                        feat = feat.cpu()
                     results['train_feat'].append(feat.numpy())
                 else:
                     pred = model_output
@@ -345,6 +340,8 @@ class ModelBase:
                                           return_last_dense=True if (self.gp is not None) else False)
                 if self.gp is not None:
                     pred, feat = model_output
+                    if feat.device != 'cpu':
+                        feat = feat.cpu()
                     results['val_feat'].append(feat.numpy())
                 else:
                     pred = model_output
