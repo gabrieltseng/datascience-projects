@@ -8,14 +8,14 @@ class Discriminator(nn.Module):
         layers = [ConvBlock(1, start_channels, 4, 2, 1)]
         input_size = input_size // 2
 
+        for i in range(additional_blocks):
+            layers.append(ConvBlock(start_channels, start_channels, 3, 1, 1))
+
         while input_size > 4:
             layers.append(ConvBlock(start_channels, start_channels // 2, 4, 2, 1))
 
             input_size = input_size // 2
             start_channels = start_channels // 2
-
-        for i in range(additional_blocks):
-            layers.append(ConvBlock(start_channels, start_channels, 3, 1, 1))
 
         layers.append(nn.Conv2d(start_channels, 1, 3))
         self.layers = nn.Sequential(*layers)
@@ -31,7 +31,7 @@ class Discriminator(nn.Module):
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding=0,
-                 negative_slope=0.1):
+                 negative_slope=0.2):
         super().__init__()
 
         self.convblock = nn.Sequential(
