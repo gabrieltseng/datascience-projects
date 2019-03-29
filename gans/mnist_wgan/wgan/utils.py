@@ -5,7 +5,9 @@ from torchvision import datasets, transforms
 class NoiseMaker:
     """Makes the inputs to the generator
     """
-    def __init__(self, num_channels=20, noise_size=7, batch_size=64):
+    def __init__(self, device, num_channels=40, noise_size=7, batch_size=64):
+
+        self.device = device
 
         self.num_channels = num_channels
         self.noise_size = noise_size
@@ -14,7 +16,8 @@ class NoiseMaker:
     def __call__(self):
 
         return torch.empty(self.batch_size, self.num_channels,
-                           self.noise_size, self.noise_size).normal_(0, 1)
+                           self.noise_size, self.noise_size,
+                           device=self.device).normal_(0, 1)
 
 
 def get_mnist_vals(data_location):

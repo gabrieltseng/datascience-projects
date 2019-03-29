@@ -2,7 +2,7 @@ from torch import nn
 
 
 class Discriminator(nn.Module):
-    def __init__(self, input_size=28, start_channels=10, additional_blocks=2):
+    def __init__(self, input_size=28, start_channels=10, additional_blocks=5):
         super().__init__()
 
         layers = [ConvBlock(1, start_channels, 4, 2, 1)]

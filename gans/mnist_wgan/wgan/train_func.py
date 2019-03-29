@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 
 def train_epoch(discriminator, generator, d_optimizer, g_optimizer, dataloader,
-                noisemaker, ncritic=5):
+                noisemaker, ncritic, device):
 
     num_batches = len(dataloader)
 
@@ -21,6 +21,8 @@ def train_epoch(discriminator, generator, d_optimizer, g_optimizer, dataloader,
                 d_optimizer.zero_grad(), g_optimizer.zero_grad()
 
                 real, _ = next(iter(dataloader))
+                if device.type != 'cpu': real = real.cuda()
+
                 fake = noisemaker()
                 with torch.no_grad():
                     fake_images = generator(fake)

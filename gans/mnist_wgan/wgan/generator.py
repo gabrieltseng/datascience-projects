@@ -7,7 +7,7 @@ class Generator(nn.Module):
     Architecture taken from the DCGAN paper
     """
 
-    def __init__(self, input_size=7, target_size=28, input_channels=20, additional_blocks=2):
+    def __init__(self, input_size=7, target_size=28, input_channels=40, additional_blocks=5):
         super().__init__()
 
         tconvblocks = [TransposedConvBlock(input_channels, input_channels, 4, 2, 1)]
