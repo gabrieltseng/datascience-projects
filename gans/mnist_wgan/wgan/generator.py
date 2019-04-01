@@ -7,12 +7,17 @@ class Generator(nn.Module):
     Architecture taken from the DCGAN paper
     """
 
-    def __init__(self, input_size=7, target_size=28, input_channels=40, additional_blocks=5):
+    def __init__(self, input_size=100, starter_channels=256, additional_blocks=1):
         super().__init__()
 
-        tconvblocks = [TransposedConvBlock(input_channels, input_channels, 4, 2, 1)]
+        self.linear = nn.Linear(input_size, starter_channels * 7 * 7, bias=False)
+        self.starter_channels = starter_channels
 
-        input_size *= 2
+        tconvblocks = []
+        input_channels = starter_channels
+
+        input_size = 7
+        target_size = 28
         while input_size < (target_size // 2):
             tconvblocks.append(TransposedConvBlock(input_channels, input_channels // 2, 4, 2, 1))
             input_channels = input_channels // 2
@@ -27,6 +32,8 @@ class Generator(nn.Module):
         self.tconvblocks = nn.Sequential(*tconvblocks)
 
     def forward(self, x):
+        batch_size = x.shape[0]
+        x = torch.reshape(self.linear(x), (batch_size, self.starter_channels, 7, 7))
         return torch.tanh(self.tconvblocks(x))
 
 

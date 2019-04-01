@@ -5,18 +5,16 @@ from torchvision import datasets, transforms
 class NoiseMaker:
     """Makes the inputs to the generator
     """
-    def __init__(self, device, num_channels=40, noise_size=7, batch_size=64):
+    def __init__(self, device, noise_size=100, batch_size=64):
 
         self.device = device
 
-        self.num_channels = num_channels
-        self.noise_size = noise_size
         self.batch_size = batch_size
+        self.noise_size = noise_size
 
     def __call__(self):
 
-        return torch.empty(self.batch_size, self.num_channels,
-                           self.noise_size, self.noise_size,
+        return torch.empty(self.batch_size, self.noise_size,
                            device=self.device).normal_(0, 1)
 
 

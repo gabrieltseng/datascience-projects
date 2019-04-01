@@ -6,7 +6,7 @@ from wgan import Generator, Discriminator, train_epoch
 from wgan.utils import NoiseMaker, get_mnist_vals
 
 
-def main(batch_size=64, num_epochs=100, save_preds=True):
+def main(batch_size=64, num_epochs=10, save_preds=True):
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(f"Using {device}")
