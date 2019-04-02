@@ -2,11 +2,16 @@ import torch
 from torchvision import datasets, transforms
 import numpy as np
 
-from wgan import Generator, Discriminator, train_epoch
+from wgan import Generator, Discriminator, train_wgan_epoch, train_ganhacks_epoch
 from wgan.utils import NoiseMaker, get_mnist_vals
 
 
-def main(batch_size=64, num_epochs=10, save_preds=True):
+def main(batch_size=64, num_epochs=3, save_preds=True, train_method='ganhacks'):
+
+    str2method = {
+        'wgan': train_wgan_epoch,
+        'ganhacks': train_ganhacks_epoch
+    }
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(f"Using {device}")
@@ -27,14 +32,12 @@ def main(batch_size=64, num_epochs=10, save_preds=True):
     if device.type != 'cpu':
         discriminator, generator = discriminator.cuda(), generator.cuda()
 
-    d_optimizer = torch.optim.RMSprop(discriminator.parameters(), lr=1e-5)
-    g_optimizer = torch.optim.RMSprop(generator.parameters(), lr=1e-5)
-
     for i in range(num_epochs):
         print(f"Epoch number {i + 1}")
-        train_epoch(discriminator, generator, d_optimizer, g_optimizer, dataloader,
-                    noisemaker, ncritic=100 if ((i == 0) or (i == 10)) else 5,
-                    device=device)
+        # ncritic is only meaningful if train_method == 'wgan'
+        str2method[train_method](discriminator, generator, dataloader, noisemaker,
+                                 ncritic=100 if ((i == 0) or (i == 10)) else 5,
+                                 device=device)
 
     # save some predictions
     if save_preds:
