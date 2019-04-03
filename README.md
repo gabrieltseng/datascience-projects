@@ -13,6 +13,7 @@ I approached the projects in the following order (latest to earliest):
 <details>
 <summary><strong><em>Table of Contents</em></strong></summary>
 
+* [MNIST WGAN](#WGAN)
 * [Language Model](#LanguageModel)
 * [Object Detection](#ObjectDetection)
 * [Stanford Databases Course](#StanfordDatabases)
@@ -26,7 +27,11 @@ I approached the projects in the following order (latest to earliest):
 
 </details>
 
-### [Language model](natural_language_processing/language_model)
+### [MNIST WGAN](gans/mnist_wgan)<a name="WGAN"></a>
+
+A [WGAN](https://arxiv.org/abs/1701.07875) used to generate MNIST digits.
+
+### [Language model](natural_language_processing/language_model)<a name="LanguageModel"></a>
 
 I experiment with two language models, one based of the [weight dropped LSTM](https://arxiv.org/abs/1708.02182), and one
 based off [temporal convolutional networks](https://arxiv.org/abs/1803.01271). Both are trained on the 

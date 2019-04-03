@@ -59,7 +59,7 @@ def train_wgan_epoch(discriminator, generator, dataloader, noisemaker, ncritic, 
 def train_ganhacks_epoch(discriminator, generator, dataloader, noisemaker, device, ncritic=None):
     # This training loop adopts all the best practices described in
     # https://github.com/soumith/ganhacks
-    # The most significant difference is to seperate the real and fake images in each minibatch
+    # The most significant difference is to separate the real and fake images in each minibatch
     # from the discriminator
 
     # note that ncritic does nothing here, but makes it easier to swap between both training methods

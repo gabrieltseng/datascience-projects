@@ -6,7 +6,7 @@ from wgan import Generator, Discriminator, train_wgan_epoch, train_ganhacks_epoc
 from wgan.utils import NoiseMaker, get_mnist_vals
 
 
-def main(batch_size=64, num_epochs=3, save_preds=True, train_method='ganhacks'):
+def main(batch_size=64, num_epochs=50, save_preds=True, train_method='ganhacks'):
 
     str2method = {
         'wgan': train_wgan_epoch,
@@ -47,7 +47,7 @@ def main(batch_size=64, num_epochs=3, save_preds=True, train_method='ganhacks'):
             output = generator(noise).cpu().numpy()
             # denormalize
             output = (output * std) + mean
-            np.save("generator_output.npy", output)
+            np.save(f"{train_method}_generator_output.npy", output)
 
 
 if __name__ == '__main__':
