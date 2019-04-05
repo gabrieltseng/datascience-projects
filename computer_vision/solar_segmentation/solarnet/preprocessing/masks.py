@@ -29,7 +29,7 @@ class MaskMaker:
         )
         return polygon_images, polygon_pixels
 
-    def process(self):
+    def process(self, imsize=5000):
 
         polygon_images, polygon_pixels = self._read_data()
 
@@ -41,11 +41,11 @@ class MaskMaker:
             if not masked_city.exists(): masked_city.mkdir()
 
             for image, polygons in tqdm(files.items()):
-                masks = []
+                mask = np.zeros((imsize, imsize))
                 for polygon in polygons:
-                    masks.append(self.make_mask(polygon_pixels[polygon]))
+                    mask += self.make_mask(polygon_pixels[polygon], imsize)
 
-                np.save(masked_city / f"{image}.npy", np.sum(masks, axis=0))
+                np.save(masked_city / f"{image}.npy", mask)
 
     @staticmethod
     def _csv_to_dict_polygon_pixels(polygon_pixels):

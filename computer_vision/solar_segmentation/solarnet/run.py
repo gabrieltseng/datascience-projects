@@ -35,4 +35,4 @@ class RunTask:
                 # then, we train the whole thing
                 optimizer = torch.optim.Adam(model.parameters())
 
-            _ = train_classifier_epoch(model, optimizer, dataloader)
+            _, _ = train_classifier_epoch(model, optimizer, dataloader)
