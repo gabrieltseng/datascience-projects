@@ -72,7 +72,6 @@ class ImageSplitter:
         im_idx = 0
         for city, images in centroids_dict.items():
             print(f"Processing {city}")
-
             for image_name, centroids in tqdm(images.items()):
 
                 org_file = rasterio.open(self.data_folder / f"{city}/{image_name}.tif").read()
@@ -92,9 +91,11 @@ class ImageSplitter:
 
                     im_idx += 1
 
-                # next, the negative examples
+                # next, the negative examples. We randomly search for negative examples
+                # until we have a) found the number we want, or b) hit positive examples
+                # too often (and maxed out our patience), in which case we give up
                 # this is a crude way of doing it, and could probably be improved
-                patience, max_patience = 0, 3
+                patience, max_patience = 0, 10
                 num_empty, max_num_empty = 0, len(centroids) * empty_ratio
                 while (patience < max_patience) and (num_empty < max_num_empty):
                     rand_x, rand_y = randint(0, org_imsize - imsize), randint(0, org_imsize - imsize)
