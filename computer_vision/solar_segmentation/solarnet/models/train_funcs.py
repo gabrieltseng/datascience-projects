@@ -61,3 +61,28 @@ def _train_classifier_epoch(model, optimizer, train_dataloader, val_dataloader):
     print(f'Train loss: {np.mean(t_losses)}, Train AUC ROC: {np.mean(t_auc_scores)}, '
           f'Val loss: {np.mean(v_losses)}, Val AUC ROC: {np.mean(v_auc_scores)}')
     return (t_losses, t_auc_scores), (v_losses, v_auc_scores)
+
+
+def _train_segmenter_epoch(model, optimizer, train_dataloader, val_dataloader):
+
+    t_losses, v_losses = [], []
+    model.train()
+    for x, y in tqdm(train_dataloader):
+        optimizer.zero_grad()
+        preds = model(x)
+
+        loss = F.binary_cross_entropy(preds, y)
+        loss.backward()
+        optimizer.step()
+
+        t_losses.append(loss.item())
+
+    with torch.no_grad():
+        model.eval()
+        for val_x, val_y in tqdm(val_dataloader):
+            val_preds = model(val_x)
+            val_loss = F.binary_cross_entropy(val_preds, val_y.unsqueeze(1))
+            v_losses.append(val_loss.item())
+    print(f'Train loss: {np.mean(t_losses)}, Val loss: {np.mean(v_losses)}')
+
+    return t_losses, v_losses
