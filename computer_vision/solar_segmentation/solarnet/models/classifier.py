@@ -7,8 +7,8 @@ class Classifier(ResnetBase):
     """A ResNet34 Model
     """
 
-    def __init__(self):
-        super().__init__(add_forward_hooks=False)
+    def __init__(self, imagenet_base=True):
+        super().__init__(imagenet_base=imagenet_base)
 
         self.avgpool = nn.AvgPool2d(7, stride=1)
         self.classifier = nn.Sequential(
