@@ -2,10 +2,11 @@ import torch
 from torch.utils.data import DataLoader
 
 import numpy as np
+from pathlib import Path
 
 from solarnet.preprocessing import MaskMaker, ImageSplitter
 from solarnet.datasets import ClassifierDataset
-from solarnet.models import Classifier, train_classifier_epoch
+from solarnet.models import Classifier, train_classifier
 
 
 class RunTask:
@@ -21,7 +22,7 @@ class RunTask:
         splitter.process()
 
     @staticmethod
-    def train_classifier(num_epochs=5, val_set=0.1,
+    def train_classifier(max_epochs=5, val_set=0.1,
                          device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
 
         model = Classifier()
@@ -38,13 +39,8 @@ class RunTask:
         train_dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
         val_dataloader = DataLoader(val_dataset, batch_size=64, shuffle=True)
 
-        for i in range(num_epochs):
-            if i <= 2:
-                # we start by finetuning the model
-                optimizer = torch.optim.Adam([pam for name, pam in
-                                              model.named_parameters() if 'classifier' in name])
-            else:
-                # then, we train the whole thing
-                optimizer = torch.optim.Adam(model.parameters())
+        train_classifier(model, train_dataloader, val_dataloader, max_epochs=max_epochs)
 
-            _, _ = train_classifier_epoch(model, optimizer, train_dataloader, val_dataloader)
+        savedir = Path('data/models')
+        if not savedir.exists(): savedir.mkdir()
+        torch.save(model.state_dict(), savedir / 'classifier.model')

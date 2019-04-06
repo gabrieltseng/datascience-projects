@@ -5,7 +5,35 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 
 
-def train_classifier_epoch(model, optimizer, train_dataloader, val_dataloader):
+def train_classifier(model, train_dataloader, val_dataloader,
+                     warmup=2, patience=5, max_epochs=100):
+
+    best_state_dict = model.state_dict()
+    best_val_auc_roc = 0.5
+    patience_counter = 0
+    for i in range(max_epochs):
+        if i <= warmup:
+            # we start by finetuning the model
+            optimizer = torch.optim.Adam([pam for name, pam in
+                                          model.named_parameters() if 'classifier' in name])
+        else:
+            # then, we train the whole thing
+            optimizer = torch.optim.Adam(model.parameters())
+
+        train_data, val_data = _train_classifier_epoch(model, optimizer, train_dataloader,
+                                                       val_dataloader)
+        if np.mean(val_data[1]) > best_val_auc_roc:
+            best_val_auc_roc = np.mean(val_data[1])
+            patience_counter = 0
+            best_state_dict = model.state_dict()
+        else:
+            patience_counter += 1
+            if patience_counter == patience:
+                print(f"Early stopping!")
+                model.load_state_dict(best_state_dict)
+
+
+def _train_classifier_epoch(model, optimizer, train_dataloader, val_dataloader):
 
     t_losses, t_auc_scores = [], []
     v_losses, v_auc_scores = [], []
