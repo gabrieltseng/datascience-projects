@@ -36,7 +36,7 @@ class RunTask:
         val_dataset = ClassifierDataset(mask=val_mask)
 
         train_dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
-        val_dataloader = DataLoader(val_dataset, batch_size=64)
+        val_dataloader = DataLoader(val_dataset, batch_size=64, shuffle=True)
 
         for i in range(num_epochs):
             if i <= 2:
