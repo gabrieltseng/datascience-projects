@@ -28,7 +28,7 @@ class ClassifierDataset:
         """
         assert len(mask) == len(self.x_files), \
             f"Mask is the wrong size! Expected {len(self.x_files)}, got {len(mask)}"
-        self.y = self.y[mask]
+        self.y = torch.as_tensor(self.y.cpu().numpy()[mask], device=self.device)
         self.x_files = [x for include, x in zip(mask, self.x_files) if include]
 
     def __len__(self):
