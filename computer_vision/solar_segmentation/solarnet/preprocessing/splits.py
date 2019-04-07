@@ -42,6 +42,9 @@ class ImageSplitter:
         metadata = pd.read_csv(self.data_folder / 'metadata/polygonDataExceptVertices.csv',
                                usecols=['city', 'image_name', 'centroid_latitude_pixels',
                                         'centroid_longitude_pixels'])
+        org_len = len(metadata)
+        metadata = metadata.dropna()
+        print(f'Dropped {org_len - len(metadata)} rows due to NaN values')
 
         # for each image, we want to know where the solar panel centroids are
         output_dict = defaultdict(lambda: defaultdict(list))
