@@ -29,7 +29,33 @@ def train_classifier(model, train_dataloader, val_dataloader,
         else:
             patience_counter += 1
             if patience_counter == patience:
-                print(f"Early stopping!")
+                print("Early stopping!")
+                model.load_state_dict(best_state_dict)
+
+
+def train_segmenter(model, train_dataloader, val_dataloader, warmup=2, patience=5, max_epochs=100):
+
+    best_state_dict = model.state_dict()
+    best_loss = 1
+    patience_counter = 0
+    for i in range(max_epochs):
+        if i <= warmup:
+            # we start by 'warming up' the final layers of the model
+            optimizer = torch.optim.Adam([pam for name, pam in
+                                          model.named_parameters() if 'pretrained' not in name])
+        else:
+            optimizer = torch.optim.Adam(model.parameters())
+
+        train_data, val_data = _train_segmenter_epoch(model, optimizer, train_dataloader,
+                                                      val_dataloader)
+        if np.mean(val_data) < best_loss:
+            best_loss = np.mean(val_data)
+            patience_counter = 0
+            best_state_dict = model.state_dict()
+        else:
+            patience_counter += 1
+            if patience_counter == patience:
+                print("Early stopping!")
                 model.load_state_dict(best_state_dict)
 
 
@@ -71,7 +97,7 @@ def _train_segmenter_epoch(model, optimizer, train_dataloader, val_dataloader):
         optimizer.zero_grad()
         preds = model(x)
 
-        loss = F.binary_cross_entropy(preds, y)
+        loss = F.binary_cross_entropy(preds, y.unsqueeze(1))
         loss.backward()
         optimizer.step()
 
