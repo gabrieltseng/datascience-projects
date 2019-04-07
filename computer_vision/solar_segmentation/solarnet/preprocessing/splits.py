@@ -103,8 +103,8 @@ class ImageSplitter:
 
                     clipped_orgfile = org_file[:, min_width: max_width, min_height: max_height]
                     if self.size_okay(clipped_orgfile, imsize):
-                        np.save(self.solar_panels / f"org/{im_idx}.npy", clipped_orgfile)
-                        np.save(self.solar_panels / f"mask/{im_idx}.npy",
+                        np.save(self.solar_panels / f"org/{city}_{im_idx}.npy", clipped_orgfile)
+                        np.save(self.solar_panels / f"mask/{city}_{im_idx}.npy",
                                 mask_file[min_width: max_width, min_height: max_height])
 
                         im_idx += 1
@@ -125,9 +125,9 @@ class ImageSplitter:
                     if mask_candidate.sum() == 0:
                         clipped_orgfile = org_file[:, rand_x: rand_x_max, rand_y: rand_y_max]
                         if self.size_okay(clipped_orgfile, imsize):
-                            np.save(self.empty / f"org/{im_idx}.npy",
+                            np.save(self.empty / f"org/{city}_{im_idx}.npy",
                                     org_file[:, rand_x: rand_x_max, rand_y: rand_y_max])
-                            np.save(self.empty / f"mask/{im_idx}.npy",
+                            np.save(self.empty / f"mask/{city}_{im_idx}.npy",
                                     mask_candidate)
                             im_idx += 1
                             num_empty += 1
