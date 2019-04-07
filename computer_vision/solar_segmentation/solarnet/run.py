@@ -23,7 +23,7 @@ class RunTask:
         splitter.process()
 
     @staticmethod
-    def train_classifier(max_epochs=5, val_size=0.1, test_size=0.1, data_folder='data',
+    def train_classifier(max_epochs=100, val_size=0.1, test_size=0.1, data_folder='data',
                          device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         data_folder = Path(data_folder)
 
@@ -62,7 +62,7 @@ class RunTask:
         np.save(savedir / 'classifier_true.npy', np.concatenate(true))
 
     @staticmethod
-    def train_segmenter(max_epochs=1, val_size=0.1, test_size=0.1,
+    def train_segmenter(max_epochs=100, val_size=0.1, test_size=0.1,
                         data_folder='data', use_classifier=True,
                         device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         data_folder = Path(data_folder)
@@ -101,3 +101,13 @@ class RunTask:
         np.save(model_dir / 'segmenter_images.npy', np.concatenate(images))
         np.save(model_dir / 'segmenter_preds.npy', np.concatenate(preds))
         np.save(model_dir / 'segmenter_true.npy', np.concatenate(true))
+
+    def train_both(self, c_max_epochs=100, c_val_size=0.1, c_test_size=0.1, s_max_epochs=100, s_val_size=0.1,
+                   s_test_size=0.1, data_folder='data',
+                   device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
+        """Train the classifier, and use it to train the segmentation model
+        """
+        self.train_classifier(max_epochs=c_max_epochs, val_size=c_val_size, test_size=c_test_size,
+                              data_folder=data_folder, device=device)
+        self.train_segmenter(max_epochs=s_max_epochs, val_size=s_val_size, test_size=s_test_size,
+                             use_classifier=True, data_folder=data_folder, device=device)

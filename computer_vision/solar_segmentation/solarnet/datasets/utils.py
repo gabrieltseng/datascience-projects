@@ -39,7 +39,7 @@ def make_masks(dataset_length, val_size=0.1, test_size=0.1):
     """
     mask = np.random.rand(dataset_length)
     train_mask = mask < (1 - (val_size + test_size))
-    val_mask = (mask > (1 - (val_size + test_size))) & (mask < 1 - test_size)
-    test_mask = mask < (1 - test_size)
+    val_mask = (mask >= (1 - (val_size + test_size))) & (mask < 1 - test_size)
+    test_mask = mask >= (1 - test_size)
 
     return train_mask, val_mask, test_mask

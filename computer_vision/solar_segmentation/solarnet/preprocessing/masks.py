@@ -5,6 +5,13 @@ from pathlib import Path
 from collections import defaultdict
 from tqdm import tqdm
 
+IMAGE_SIZES = {
+    'Modesto': (5000, 5000),
+    'Fresno': (5000, 5000),
+    'Oxnard': (4000, 6000),
+    'Stockton': (5000, 5000)
+}
+
 
 class MaskMaker:
     """This class looks for all folders defined in FILE2CITY, and
@@ -29,21 +36,23 @@ class MaskMaker:
         )
         return polygon_images, polygon_pixels
 
-    def process(self, imsize=5000):
+    def process(self):
 
         polygon_images, polygon_pixels = self._read_data()
 
         for city, files in polygon_images.items():
             print(f'Processing {city}')
+            if city != 'Oxnard': continue
             # first, we make sure the mask file exists; if not,
             # we make it
             masked_city = self.data_folder / f"{city}_masks"
+            x_size, y_size = IMAGE_SIZES[city]
             if not masked_city.exists(): masked_city.mkdir()
 
             for image, polygons in tqdm(files.items()):
-                mask = np.zeros((imsize, imsize))
+                mask = np.zeros((x_size, y_size))
                 for polygon in polygons:
-                    mask += self.make_mask(polygon_pixels[polygon], imsize)
+                    mask += self.make_mask(polygon_pixels[polygon], (x_size, y_size))
 
                 np.save(masked_city / f"{image}.npy", mask)
 
@@ -67,13 +76,14 @@ class MaskMaker:
         return output_dict
 
     @staticmethod
-    def make_mask(coords, imsize=5000):
+    def make_mask(coords, imsizes):
         """https://stackoverflow.com/questions/3654289/scipy-create-2d-polygon-mask
         """
         poly_path = PolygonPath(coords)
 
-        x, y = np.mgrid[:imsize, :imsize]
+        x_size, y_size = imsizes
+        x, y = np.mgrid[:x_size, :y_size]
         coors = np.hstack((x.reshape(-1, 1), y.reshape(-1, 1)))
         mask = poly_path.contains_points(coors)
 
-        return mask.reshape(imsize, imsize).astype(float)
+        return mask.reshape(x_size, y_size).astype(float)

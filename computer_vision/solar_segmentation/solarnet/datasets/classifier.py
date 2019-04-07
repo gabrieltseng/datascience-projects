@@ -35,7 +35,6 @@ class ClassifierDataset:
         return len(self.y)
 
     def __getitem__(self, index):
-
         y = self.y[index]
         x = np.load(self.x_files[index])
         if self.normalize: x = normalize(x)

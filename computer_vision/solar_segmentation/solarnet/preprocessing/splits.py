@@ -6,6 +6,8 @@ from pathlib import Path
 import rasterio
 from tqdm import tqdm
 
+from .masks import IMAGE_SIZES
+
 
 class ImageSplitter:
     """Solar panels cover a relatively small landmass compared to
@@ -57,19 +59,25 @@ class ImageSplitter:
 
     @staticmethod
     def adjust_coords(coords, image_radius, org_imsize):
+        x_imsize, y_imsize = org_imsize
+        x_imrad, y_imrad = image_radius
         x, y = coords
         # we make sure that the centroid isn't at the edge of the image
-        if x < image_radius: x = image_radius
-        elif x > (org_imsize - image_radius): x = org_imsize - image_radius
+        if x < x_imrad: x = x_imrad
+        elif x > (x_imsize - x_imrad): x = x_imsize - x_imrad
 
-        if y < image_radius: y = image_radius
-        elif y > (org_imsize - image_radius): y = org_imsize - image_radius
-
+        if y < y_imrad: y = y_imrad
+        elif y > (y_imsize - y_imrad): y = y_imsize - y_imrad
         return x, y
 
-    def process(self, imsize=224, empty_ratio=2, org_imsize=5000):
+    @staticmethod
+    def size_okay(image, imsize):
+        if image.shape == (3, imsize, imsize):
+            return True
+        return False
 
-        im_rad = imsize // 2
+    def process(self, imsize=224, empty_ratio=2):
+
         centroids_dict = self.read_centroids()
 
         im_idx = 0
@@ -78,21 +86,28 @@ class ImageSplitter:
             for image_name, centroids in tqdm(images.items()):
 
                 org_file = rasterio.open(self.data_folder / f"{city}/{image_name}.tif").read()
+
+                org_x_imsize, org_y_imsize = IMAGE_SIZES[city]
+                x_imrad, y_imrad = org_x_imsize // 2, org_y_imsize // 2
+                if org_file.shape != (3, org_x_imsize, org_y_imsize):
+                    print(f'{city}/{image_name}.tif is malformed with shape {org_file.shape}. Skipping!')
+                    continue
                 mask_file = np.load(self.data_folder / f"{city}_masks/{image_name}.npy")
 
                 # first, lets collect the positive examples
                 for centroid in centroids:
-                    x, y = self.adjust_coords(centroid, im_rad, org_imsize)
+                    x, y = self.adjust_coords(centroid, (x_imrad, y_imrad), (org_x_imsize, org_y_imsize))
 
-                    max_width, max_height = int(x + im_rad), int(y + im_rad)
+                    max_width, max_height = int(x + x_imrad), int(y + y_imrad)
                     min_width, min_height = max_width - imsize, max_height - imsize
 
-                    np.save(self.solar_panels / f"org/{im_idx}.npy",
-                            org_file[:, min_width: max_width, min_height: max_height])
-                    np.save(self.solar_panels / f"mask/{im_idx}.npy",
-                            mask_file[min_width: max_width, min_height: max_height])
+                    clipped_orgfile = org_file[:, min_width: max_width, min_height: max_height]
+                    if self.size_okay(clipped_orgfile, imsize):
+                        np.save(self.solar_panels / f"org/{im_idx}.npy", clipped_orgfile)
+                        np.save(self.solar_panels / f"mask/{im_idx}.npy",
+                                mask_file[min_width: max_width, min_height: max_height])
 
-                    im_idx += 1
+                        im_idx += 1
 
                 # next, the negative examples. We randomly search for negative examples
                 # until we have a) found the number we want, or b) hit positive examples
@@ -101,19 +116,21 @@ class ImageSplitter:
                 patience, max_patience = 0, 10
                 num_empty, max_num_empty = 0, len(centroids) * empty_ratio
                 while (patience < max_patience) and (num_empty < max_num_empty):
-                    rand_x, rand_y = randint(0, org_imsize - imsize), randint(0, org_imsize - imsize)
+                    rand_x, rand_y = randint(0, org_x_imsize - imsize), randint(0, org_y_imsize - imsize)
 
                     rand_x_max, rand_y_max = rand_x + imsize, rand_y + imsize
                     # this makes sure no solar panel is present
                     mask_candidate = mask_file[rand_x: rand_x_max, rand_y: rand_y_max]
 
                     if mask_candidate.sum() == 0:
-                        np.save(self.empty / f"org/{im_idx}.npy",
-                                org_file[:, rand_x: rand_x_max, rand_y: rand_y_max])
-                        np.save(self.empty / f"mask/{im_idx}.npy",
-                                mask_candidate)
-                        im_idx += 1
-                        num_empty += 1
+                        clipped_orgfile = org_file[:, rand_x: rand_x_max, rand_y: rand_y_max]
+                        if self.size_okay(clipped_orgfile, imsize):
+                            np.save(self.empty / f"org/{im_idx}.npy",
+                                    org_file[:, rand_x: rand_x_max, rand_y: rand_y_max])
+                            np.save(self.empty / f"mask/{im_idx}.npy",
+                                    mask_candidate)
+                            im_idx += 1
+                            num_empty += 1
                     else:
                         patience += 1
         print(f"Generated {im_idx} samples")
