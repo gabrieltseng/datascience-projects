@@ -49,10 +49,10 @@ class ImageSplitter:
         print(f'Dropped {org_len - len(metadata)} rows due to NaN values')
 
         # for each image, we want to know where the solar panel centroids are
-        output_dict = defaultdict(lambda: defaultdict(list))
+        output_dict = defaultdict(lambda: defaultdict(set))
 
         for idx, row in metadata.iterrows():
-            output_dict[row.city][row.image_name].append((
+            output_dict[row.city][row.image_name].add((
                 row.centroid_latitude_pixels, row.centroid_longitude_pixels
             ))
         return output_dict
@@ -60,14 +60,13 @@ class ImageSplitter:
     @staticmethod
     def adjust_coords(coords, image_radius, org_imsize):
         x_imsize, y_imsize = org_imsize
-        x_imrad, y_imrad = image_radius
         x, y = coords
         # we make sure that the centroid isn't at the edge of the image
-        if x < x_imrad: x = x_imrad
-        elif x > (x_imsize - x_imrad): x = x_imsize - x_imrad
+        if x < image_radius: x = image_radius
+        elif x > (x_imsize - image_radius): x = x_imsize - image_radius
 
-        if y < y_imrad: y = y_imrad
-        elif y > (y_imsize - y_imrad): y = y_imsize - y_imrad
+        if y < image_radius: y = image_radius
+        elif y > (y_imsize - image_radius): y = y_imsize - image_radius
         return x, y
 
     @staticmethod
@@ -78,6 +77,7 @@ class ImageSplitter:
 
     def process(self, imsize=224, empty_ratio=2):
 
+        image_radius = imsize // 2
         centroids_dict = self.read_centroids()
 
         im_idx = 0
@@ -88,7 +88,6 @@ class ImageSplitter:
                 org_file = rasterio.open(self.data_folder / f"{city}/{image_name}.tif").read()
 
                 org_x_imsize, org_y_imsize = IMAGE_SIZES[city]
-                x_imrad, y_imrad = org_x_imsize // 2, org_y_imsize // 2
                 if org_file.shape != (3, org_x_imsize, org_y_imsize):
                     print(f'{city}/{image_name}.tif is malformed with shape {org_file.shape}. Skipping!')
                     continue
@@ -96,16 +95,16 @@ class ImageSplitter:
 
                 # first, lets collect the positive examples
                 for centroid in centroids:
-                    x, y = self.adjust_coords(centroid, (x_imrad, y_imrad), (org_x_imsize, org_y_imsize))
-
-                    max_width, max_height = int(x + x_imrad), int(y + y_imrad)
+                    x, y = self.adjust_coords(centroid, image_radius, (org_x_imsize, org_y_imsize))
+                    max_width, max_height = int(x + image_radius), int(y + image_radius)
                     min_width, min_height = max_width - imsize, max_height - imsize
 
                     clipped_orgfile = org_file[:, min_width: max_width, min_height: max_height]
+                    mask = mask_file[min_width: max_width, min_height: max_height]
+
                     if self.size_okay(clipped_orgfile, imsize):
                         np.save(self.solar_panels / f"org/{city}_{im_idx}.npy", clipped_orgfile)
-                        np.save(self.solar_panels / f"mask/{city}_{im_idx}.npy",
-                                mask_file[min_width: max_width, min_height: max_height])
+                        np.save(self.solar_panels / f"mask/{city}_{im_idx}.npy", mask)
 
                         im_idx += 1
 
