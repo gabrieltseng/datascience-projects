@@ -1,0 +1,8 @@
+name: dul
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - pytorch
+  - python=3.7.3
+  - jupyter'
