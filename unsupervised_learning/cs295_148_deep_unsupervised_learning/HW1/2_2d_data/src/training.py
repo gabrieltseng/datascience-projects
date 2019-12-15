@@ -16,7 +16,7 @@ def train_model(
     num_samples: int = 10000,
     test_size: float = 0.2,
     val_size: float = 0.2,
-    num_epochs: int = 100,
+    num_epochs: int = 1000,
     early_stopping: int = 10,
 ):
 
@@ -28,11 +28,6 @@ def train_model(
 
     train, test = train_test_split(data, test_size)
     train, val = train_test_split(train, (1 - test_size) * val_size)
-    plot_2d_hist(
-        train[:, 0],
-        train[:, 1],
-        savepath=Path("diagrams/training_data_distribution.png"),
-    )
 
     train_loader = DataLoader(
         TensorDataset(torch.from_numpy(train)), batch_size=128, shuffle=True,
