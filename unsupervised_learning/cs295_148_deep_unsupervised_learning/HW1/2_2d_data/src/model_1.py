@@ -38,8 +38,13 @@ class Px2Model(nn.Module):
 
 
 class Model1(nn.Module):
-    def __init__(self, x1_dims: int = 200, x2_dims: int = 200, num_layers: int = 1,
-                 one_hot_encode: bool = True):
+    def __init__(
+        self,
+        x1_dims: int = 200,
+        x2_dims: int = 200,
+        num_layers: int = 1,
+        one_hot_encode: bool = True,
+    ):
         super().__init__()
 
         self.x1_dims = x1_dims
@@ -50,9 +55,7 @@ class Model1(nn.Module):
     def encoder(self, x: torch.Tensor) -> torch.Tensor:
         return torch.eye(self.x1_dims)[x.long()].squeeze(1)
 
-    def forward(
-        self, x: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
 
         input_tensor = x[:, 0].unsqueeze(-1).float()
         x1_dist = self.probx1(input_tensor)

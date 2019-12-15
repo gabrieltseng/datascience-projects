@@ -29,4 +29,4 @@ def train_test_split(
     x: np.ndarray, val_size: float = 0.2
 ) -> Tuple[np.ndarray, np.ndarray]:
 
-    return x[: int(len(x) * 1 - val_size)], x[-int(len(x) * val_size):]
+    return x[: int(len(x) * 1 - val_size)], x[-int(len(x) * val_size) :]
