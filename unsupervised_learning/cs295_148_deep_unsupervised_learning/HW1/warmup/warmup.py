@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, TensorDataset
+from torch.distributions.categorical import Categorical
 
 from typing import List
 
@@ -32,7 +33,6 @@ def plot_loss(train_loss: List[float], val_loss: List[float], epoch_length: int)
 
 def plot_probabilities(x: np.ndarray, y: np.ndarray):
     fig, ax = plt.subplots()
-    print(x.shape, y.shape)
 
     ax.bar(x, y, label="Model probabilities")
     plt.legend()
@@ -45,7 +45,7 @@ def draw_samples(model: nn.Module, num_samples: int) -> List[int]:
     samples: List[int] = []
     for _ in range(num_samples):
         input = torch.tensor(np.random.randint(1, 100))
-        samples.append((torch.argmax(F.softmax(model(input))) + 1).item())
+        samples.append(Categorical(F.softmax(model(input))).sample())
 
     return samples
 
