@@ -28,16 +28,19 @@ def plot_loss(train_loss: List[float], val_loss: List[float], epoch_length: int)
     ax.scatter([idx * epoch_length for idx, _ in enumerate(val_loss)], val_loss, label="Val loss")
     plt.legend()
 
-    plt.savefig("warmup_1.png", dpi=300, bbox_inches="tight")
+    plt.xlabel("Training step")
+    plt.ylabel("Loss (bits)")
+
+    plt.savefig("diagrams/losses.png", dpi=300, bbox_inches="tight")
 
 
 def plot_probabilities(x: np.ndarray, y: np.ndarray):
     fig, ax = plt.subplots()
 
-    ax.bar(x, y, label="Model probabilities")
-    plt.legend()
+    ax.bar(x, y)
+    plt.title("Model probabilities")
 
-    plt.savefig("warmup_2.png", dpi=300, bbox_inches="tight")
+    plt.savefig("diagrams/model_probabilities.png", dpi=300, bbox_inches="tight")
 
 
 def draw_samples(model: nn.Module, num_samples: int) -> List[int]:
@@ -127,12 +130,14 @@ def train_model(num_epochs: int = 100, early_stopping: int = 5):
 
     plt.clf()
     plt.hist(data.squeeze(1))
-    plt.savefig("original_data_distribution.png", dpi=300, bbox_inches="tight")
+    plt.title("Original Data Distribution")
+    plt.savefig("diagrams/original_data_distribution.png", dpi=300, bbox_inches="tight")
 
     samples = draw_samples(model, num_samples=1000)
     plt.clf()
     plt.hist(samples)
-    plt.savefig("modelled_data_distribution.png", dpi=300, bbox_inches="tight")
+    plt.title("Sampled Data Distribution")
+    plt.savefig("diagrams/sampled_data_distribution.png", dpi=300, bbox_inches="tight")
 
 
 if __name__ == '__main__':
