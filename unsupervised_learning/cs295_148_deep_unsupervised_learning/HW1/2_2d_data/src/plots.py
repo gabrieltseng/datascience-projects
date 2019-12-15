@@ -28,7 +28,7 @@ def plot_loss(
     plt.legend()
 
     plt.xlabel("Training step")
-    plt.ylabel("Loss (bits)")
+    plt.ylabel("Loss (bits per dimension)")
 
     plt.savefig(
         "diagrams/losses.png" if savepath is None else savepath,

@@ -25,13 +25,17 @@ class Px2Model(nn.Module):
     Given p(x1), produce a distribution over x2
     """
 
-    def __init__(self, x1_dims: int = 1, x2_dims: int = 200, num_layers: int = 1) -> None:
+    def __init__(
+        self, x1_dims: int = 1, x2_dims: int = 200, num_layers: int = 1
+    ) -> None:
         super().__init__()
 
         layer_list: List[nn.Module] = []
 
         for i in range(num_layers):
-            layer_list.append(nn.Linear(x1_dims if i == 0 else x2_dims, x2_dims, bias=False))
+            layer_list.append(
+                nn.Linear(x1_dims if i == 0 else x2_dims, x2_dims, bias=False)
+            )
             if i < num_layers - 1:
                 layer_list.append(nn.ReLU())
 

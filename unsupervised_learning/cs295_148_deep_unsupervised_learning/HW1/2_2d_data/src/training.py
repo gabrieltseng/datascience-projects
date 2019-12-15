@@ -53,12 +53,12 @@ def train_model(
             loss.backward()
             optimizer.step()
 
-            train_loss.append(loss.item())
+            train_loss.append(loss.item() / 2)
 
         with torch.no_grad():
             val_loss = loss_function(model(val_tensor), val_tensor).mean()
 
-            epoch_val_loss.append(val_loss.item())
+            epoch_val_loss.append(val_loss.item() / 2)
 
             if val_loss.item() < best_val_loss:
                 best_val_loss = val_loss.item()
@@ -72,7 +72,7 @@ def train_model(
                         model.load_state_dict(best_model_dict)
                     break
         print(
-            f"Epoch {epoch + 1}: Train loss: {np.mean(train_loss)}, Val loss: {val_loss.item()}"
+            f"Epoch {epoch + 1}: Train loss (bits / dim): {np.mean(train_loss)}, Val loss: {val_loss.item() / 2}"
         )
 
     plot_loss(
@@ -82,7 +82,9 @@ def train_model(
         savepath=Path(f"diagrams/{model.name}_loss_curve.png"),
     )
 
-    print(f"Test loss: {loss_function(model(test_tensor), test_tensor).mean()}")
+    print(
+        f"Test loss: {loss_function(model(test_tensor), test_tensor).mean() / 2} bits / dim"
+    )
 
     x1_samples, x2_samples = sample_model(model, 1000)
     plot_2d_hist(
