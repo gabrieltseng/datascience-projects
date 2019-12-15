@@ -38,6 +38,9 @@ class Px2Model(nn.Module):
 
 
 class Model1(nn.Module):
+
+    name = "model_1"
+
     def __init__(
         self,
         x1_dims: int = 200,

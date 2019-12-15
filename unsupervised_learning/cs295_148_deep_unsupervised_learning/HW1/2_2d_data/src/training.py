@@ -80,11 +80,18 @@ def train_model(
             f"Epoch {epoch + 1}: Train loss: {np.mean(train_loss)}, Val loss: {val_loss.item()}"
         )
 
-    plot_loss(train_loss, epoch_val_loss, len(train_loader))
+    plot_loss(
+        train_loss,
+        epoch_val_loss,
+        len(train_loader),
+        savepath=Path(f"diagrams/{model.name}_loss_curve.png"),
+    )
 
     print(f"Test loss: {loss_function(model(test_tensor), test_tensor).mean()}")
 
     x1_samples, x2_samples = sample_model(model, 1000)
     plot_2d_hist(
-        x1_samples, x2_samples, savepath=Path("diagrams/sampled_data_distribution.png")
+        x1_samples,
+        x2_samples,
+        savepath=Path(f"diagrams/{model.name}_sampled_data_distribution.png"),
     )
