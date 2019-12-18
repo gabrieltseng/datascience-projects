@@ -47,7 +47,7 @@ def draw_samples(model: nn.Module, num_samples: int) -> List[int]:
 
     samples: List[int] = []
     for _ in range(num_samples):
-        input = torch.tensor(np.random.randint(1, 100))
+        input = torch.tensor(np.random.randint(1, 100)).unsqueeze(-1)
         samples.append(Categorical(F.softmax(model(input))).sample())
 
     return samples
@@ -60,13 +60,13 @@ class Model(nn.Module):
         self.theta = nn.Parameter(torch.zeros(1, 100))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x * self.theta
+        return torch.ones(x.shape[0], 1) * self.theta
 
 
 def train_model(num_epochs: int = 100, early_stopping: int = 5):
 
     model = Model()
-    data = np.expand_dims(sample_data(), -1)
+    data = sample_data()
 
     train_data = torch.from_numpy(data[:int(len(data) * 0.64)])
     val_data = torch.from_numpy(data[int(len(data) * 0.64):int(len(data) * 0.8)])
@@ -92,7 +92,7 @@ def train_model(num_epochs: int = 100, early_stopping: int = 5):
         for x_batch, in train_loader:
             optimizer.zero_grad()
 
-            loss = loss_function(model(x_batch), x_batch.squeeze(1)).mean()
+            loss = loss_function(model(x_batch), x_batch).mean()
 
             loss.backward()
             optimizer.step()
@@ -100,7 +100,7 @@ def train_model(num_epochs: int = 100, early_stopping: int = 5):
             train_loss.append(loss.item())
 
         with torch.no_grad():
-            val_loss = loss_function(model(val_data), val_data.squeeze(1)).mean()
+            val_loss = loss_function(model(val_data), val_data).mean()
 
             epoch_val_loss.append(val_loss.item())
 
@@ -119,7 +119,7 @@ def train_model(num_epochs: int = 100, early_stopping: int = 5):
 
     plot_loss(train_loss, epoch_val_loss, len(train_loader))
 
-    print(f"Test loss: {loss_function(model(test_data), test_data.squeeze(1)).mean()}")
+    print(f"Test loss: {loss_function(model(test_data), test_data).mean()}")
 
     with torch.no_grad():
         x = np.arange(1, 100)
@@ -129,7 +129,7 @@ def train_model(num_epochs: int = 100, early_stopping: int = 5):
         plot_probabilities(x, np.asarray(relevant_probabilities))
 
     plt.clf()
-    plt.hist(data.squeeze(1))
+    plt.hist(data)
     plt.title("Original Data Distribution")
     plt.savefig("diagrams/original_data_distribution.png", dpi=300, bbox_inches="tight")
 
