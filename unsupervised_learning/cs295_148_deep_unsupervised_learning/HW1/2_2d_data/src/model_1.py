@@ -17,7 +17,7 @@ class Px1Model(nn.Module):
         self.theta = nn.Parameter(torch.zeros(1, num_dims))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x * self.theta
+        return torch.ones_like(x) * self.theta
 
 
 class Px2Model(nn.Module):
