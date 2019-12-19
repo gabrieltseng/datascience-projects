@@ -15,17 +15,17 @@ class Masked2DLinear(nn.Module):
     """
 
     def __init__(self, in_features: int, out_features: int,
-                 x1_dims: int, x2_dims: int, mask_in: bool) -> None:
+                 x1_dims: int, mask_in: bool) -> None:
         super().__init__()
 
         self.w = nn.Parameter(torch.zeros(out_features, in_features).float(), requires_grad=True)
         self.bias = nn.Parameter(torch.zeros(out_features).float(), requires_grad=True)
-        self.mask = self.set_mask(in_features, out_features, x1_dims, x2_dims, mask_in)
+        self.mask = self.set_mask(in_features, out_features, x1_dims, mask_in)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return F.linear(x, self.mask * self.w, self.bias)
 
-    def set_mask(self, in_features: int, out_features: int, x1_dims: int, x2_dims: int, mask_in: bool) -> torch.Tensor:
+    def set_mask(self, in_features: int, out_features: int, x1_dims: int, mask_in: bool) -> torch.Tensor:
 
         # if mask_in, then I want to mask the input (i.e. x_2_in)
         # otherwise, I want to mask the output (i.e. x_1_out)
@@ -46,11 +46,12 @@ class Model2(nn.Module):
     name = "model_2"  # aka MADE
 
     def __init__(self, x1_dim: int = 200, x2_dim: int = 200,
-                 hidden_sizes: Tuple[int, ...] = (200, 200)) -> None:
+                 hidden_sizes: Tuple[int, ...] = (200, 600)) -> None:
         super().__init__()
 
         layer_list: List[nn.Module] = [Masked2DLinear(in_features=x1_dim + x2_dim, out_features=hidden_sizes[0],
-                                                      x1_dims=x1_dim, x2_dims=x2_dim, mask_in=True)]
+                                                      x1_dims=x1_dim, mask_in=True),
+                                       nn.ReLU()]
 
         for idx, hidden_size in enumerate(hidden_sizes[1:]):
             layer_list.append(nn.Linear(in_features=hidden_sizes[idx],
@@ -58,7 +59,7 @@ class Model2(nn.Module):
             layer_list.append(nn.ReLU())
 
         layer_list.append(Masked2DLinear(in_features=hidden_sizes[-1], out_features=x1_dim + x2_dim,
-                                         x1_dims=x1_dim, x2_dims=x2_dim, mask_in=False))
+                                         x1_dims=x1_dim, mask_in=False))
 
         self.net = nn.Sequential(*layer_list)
         self.x1_dim = x1_dim

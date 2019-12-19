@@ -9,4 +9,4 @@ if __name__ == "__main__":
     model2 = Model2()
 
     train_model(model1)
-    # train_model(model2)
+    train_model(model2)

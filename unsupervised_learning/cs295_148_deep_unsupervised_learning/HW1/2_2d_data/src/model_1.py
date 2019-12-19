@@ -53,7 +53,7 @@ class Model1(nn.Module):
         self,
         x1_dims: int = 200,
         x2_dims: int = 200,
-        num_layers: int = 2,
+        num_layers: int = 4,
         one_hot_encode: bool = True,
     ) -> None:
         super().__init__()
