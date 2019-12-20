@@ -21,7 +21,7 @@ For model 2:
 
 1. The training curve:
 
-<img src="diagrams/model_1_loss_curve.png" alt="training curve" height="350px"/>
+<img src="diagrams/model_2_loss_curve.png" alt="training curve" height="350px"/>
 
 2. The sampled distribution. On the left, the original data distribution. In the middle,
 the training data distribution. On the right, the sampled data distribution
