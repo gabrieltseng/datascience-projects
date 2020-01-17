@@ -130,8 +130,8 @@ class ResBlock(nn.Module):
         super().__init__()
         assert channels % 2 == 0, f"channels should be divisible by 2, got {channels}"
 
-        self.modules = nn.ModuleList(
-            [
+        self.conv_layers = nn.Sequential(
+            *[
                 nn.ReLU(),
                 MaskedConv(
                     mask_type="B",
@@ -158,4 +158,28 @@ class ResBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
-        return x + self.modules(x)
+        return x + self.conv_layers(x)
+
+
+class PixelCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.in_conv = MaskedConv("A", in_channels=3, out_channels=128, kernel_size=7)
+
+        self.resnet_blocks = nn.Sequential(*[ResBlock(channels=128)] * 12)
+
+        self.out_layers = nn.Sequential(
+            *[
+                nn.ReLU(),
+                MaskedConv("B", in_channels=128, out_channels=64, kernel_size=1),
+                nn.ReLU(),
+                MaskedConv("B", in_channels=64, out_channels=12, kernel_size=1),
+            ]
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+        x = self.in_conv(x)
+        x = self.resnet_blocks(x)
+        return self.out_layers(x)
