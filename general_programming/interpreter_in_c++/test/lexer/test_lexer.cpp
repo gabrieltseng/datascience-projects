@@ -7,7 +7,7 @@
 #include <array>
 
 
-TEST_CASE("Test Nest Token")
+TEST_CASE("Test Next Token")
 {
     std::string input = "=+(){},;";
 
@@ -25,15 +25,15 @@ TEST_CASE("Test Nest Token")
         {token::RBRACE, "}"},
         {token::COMMA, ","},
         {token::SEMICOLON, ";"},
-        {token::ENDOF, "EOF"},
+        {token::ENDOF, ""},
     };
     
     lexer::Lexer l = lexer::New(input);
 
     for(const auto& test_case : test_cases) {
-        token::TokenType tok = l.NextToken();
+        token::Token tok = l.nextToken();
 
-        CHECK(tok.type == test_case.expected_type);
         CHECK(tok.literal == test_case.expected_literal);
+        CHECK(tok.type == test_case.expected_type);
     };
 };

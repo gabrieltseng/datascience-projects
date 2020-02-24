@@ -2,6 +2,7 @@
 #define MONKEY_LEXER_H_
 
 #include <string>
+#include "token.h"
 
 namespace lexer
 {
@@ -10,9 +11,11 @@ namespace lexer
         int position;
         int readPosition;
         char ch;
+        void readChar();
+        token::Token nextToken();
     } Lexer;
 
-    Lexer * New(std::string);
+    Lexer New(std::string);
 };
 
 #endif
