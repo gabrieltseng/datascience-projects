@@ -13,6 +13,9 @@ namespace lexer
         char ch;
         void readChar();
         token::Token nextToken();
+        std::string readIdentifier();
+        std::string readNumber();
+        void skipWhitespace();
     } Lexer;
 
     Lexer New(std::string);

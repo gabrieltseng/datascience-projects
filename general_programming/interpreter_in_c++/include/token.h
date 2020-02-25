@@ -2,6 +2,7 @@
 #define MONKEY_TOKEN_H_
 
 #include <string>
+#include <map>
 
 namespace token
 {
@@ -32,6 +33,9 @@ const TokenType RBRACE = "}";
 // Keywords
 const TokenType FUNCTION = "FUNCTION";
 const TokenType LET = "LET";
+
+token::TokenType LookupIdent(std::string ident);
+
 };
 
 #endif 

@@ -3,6 +3,15 @@
 #include "token.h" 
 
 
+bool isLetter(char ch) {
+    return std::isalpha(static_cast<unsigned char>(ch));
+};
+
+bool isDigit(char ch) {
+    return std::isdigit(static_cast<unsigned char>(ch));
+}
+
+
 namespace lexer{
 
     token::Token newToken(token::TokenType tokenType, char ch) {
@@ -23,10 +32,34 @@ namespace lexer{
         position = readPosition;
         readPosition += 1;
         };
+    
+    std::string lexer::Lexer::readIdentifier() {
+        int start_position = position;
+        while (isLetter(ch)) {
+            readChar();
+        };
+        return input.substr(start_position, position - start_position);
+    };
+
+    std::string lexer::Lexer::readNumber() {
+        int start_position = position;
+        while (isDigit(ch)) {
+            readChar();
+        }
+        return input.substr(start_position, position - start_position);
+    }
+
+    void lexer::Lexer::skipWhitespace() {
+        while (std::isspace(static_cast<unsigned char>(ch))) {
+            readChar();
+        };
+    }
 
     token::Token lexer::Lexer::nextToken() {
             
             token::Token tok;
+
+            skipWhitespace();
 
             // the switch used in the book behaved wierdly here
             if (ch == '=') {
@@ -57,12 +90,27 @@ namespace lexer{
                 tok.literal = "";
                 tok.type = token::ENDOF;
             }
+            else {
+                if (isLetter(ch)) {
+                    tok.literal = readIdentifier();
+                    tok.type = token::LookupIdent(tok.literal);
+                    return tok;
+                }
+                else if (isDigit(ch)) {
+                    tok.type = token::INT;
+                    tok.literal = readNumber();
+                    return tok;
+                }
+                else {
+                    tok = newToken(token::ILLEGAL, ch);
+                }
+            }
             readChar();
             return tok;
         };
 
     lexer::Lexer New(std::string input){
-        lexer::Lexer l = {input: input};
+        lexer::Lexer l = {.input = input};
         l.readChar();
         return l;
     };
