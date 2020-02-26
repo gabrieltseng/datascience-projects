@@ -33,6 +33,15 @@ namespace lexer{
         readPosition += 1;
         };
     
+    char lexer::Lexer::peekChar() {
+        if (readPosition >= input.length()) {
+            return '\0';  // signifies EOF
+        }
+        else {
+            return input[readPosition];
+        }
+    }
+
     std::string lexer::Lexer::readIdentifier() {
         int start_position = position;
         while (isLetter(ch)) {
@@ -63,7 +72,17 @@ namespace lexer{
 
             // the switch used in the book behaved wierdly here
             if (ch == '=') {
-                tok = newToken(token::ASSIGN, ch);
+                if (peekChar() == '=') {
+                    char old_char = ch;
+                    readChar();
+                    std::string literal;
+                    literal += old_char;
+                    literal += ch;
+                    tok.type = token::EQ;
+                    tok.literal = literal;
+                } else {
+                    tok = newToken(token::ASSIGN, ch);
+                }
             }
             else if (ch == '+') {
                 tok = newToken(token::PLUS, ch);
@@ -102,7 +121,17 @@ namespace lexer{
                 tok = newToken(token::LT, ch);
             }
             else if (ch == '!') {
-                tok = newToken(token::BANG, ch);
+                if (peekChar() == '=') {
+                    char old_char = ch;
+                    readChar();
+                    std::string literal;
+                    literal += old_char;
+                    literal += ch;
+                    tok.type = token::NOT_EQ;
+                    tok.literal = literal;
+                } else {
+                    tok = newToken(token::BANG, ch);
+                }
             }
             else if (ch == 0) {
                 tok.literal = "";

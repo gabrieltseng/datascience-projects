@@ -25,8 +25,11 @@ const TokenType BANG = "!";
 const TokenType ASTERISK = "*";
 const TokenType SLASH = "/";
 
+// comparisons
 const TokenType LT = "<";
 const TokenType GT = ">";
+const TokenType EQ = "==";
+const TokenType NOT_EQ = "!=";
 
 // Delimiters
 const TokenType COMMA = ",";

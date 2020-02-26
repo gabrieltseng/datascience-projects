@@ -22,14 +22,16 @@ TEST_CASE("Test Next Token")
         "   return true; \n"
         "} else { \n"
         "   return false; \n"
-        "}";
+        "} \n"
+        "10 == 10; \n"
+        "10 != 9;";
 
     struct TestCases {
         token::TokenType expected_type;
         std::string expected_literal;
     };
 
-    TestCases test_cases[66] = {
+    TestCases test_cases[74] = {
         {token::LET, "let"},
         {token::IDENT, "five"},
         {token::ASSIGN, "="},
@@ -95,6 +97,14 @@ TEST_CASE("Test Next Token")
         {token::FALSE, "false"},
         {token::SEMICOLON, ";"},
         {token::RBRACE, "}"},
+        {token::INT, "10"},
+        {token::EQ, "=="},
+        {token::INT, "10"},
+        {token::SEMICOLON, ";"},
+        {token::INT, "10"},
+        {token::NOT_EQ, "!="},
+        {token::INT, "9"},
+        {token::SEMICOLON, ";"},
         {token::ENDOF, ""},
     };
     lexer::Lexer l = lexer::New(input);

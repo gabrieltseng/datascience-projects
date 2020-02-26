@@ -12,6 +12,7 @@ namespace lexer
         int readPosition;
         char ch;
         void readChar();
+        char peekChar();
         token::Token nextToken();
         std::string readIdentifier();
         std::string readNumber();
