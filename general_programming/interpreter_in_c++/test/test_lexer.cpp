@@ -15,14 +15,21 @@ TEST_CASE("Test Next Token")
         "let add = fn(x, y) { \n"
         "   x + y; \n"
         "}; \n"
-        "let result = add(five, ten); ";
+        "let result = add(five, ten); \n"
+        "!-/*5; \n"
+        "5 < 10 > 5; \n"
+        "if (5 < 10) {\n"
+        "   return true; \n"
+        "} else { \n"
+        "   return false; \n"
+        "}";
 
     struct TestCases {
         token::TokenType expected_type;
         std::string expected_literal;
     };
 
-    TestCases test_cases[37] = {
+    TestCases test_cases[66] = {
         {token::LET, "let"},
         {token::IDENT, "five"},
         {token::ASSIGN, "="},
@@ -59,6 +66,35 @@ TEST_CASE("Test Next Token")
         {token::IDENT, "ten"},
         {token::RPAREN, ")"},
         {token::SEMICOLON, ";"},
+        {token::BANG, "!"},
+        {token::MINUS, "-"},
+        {token::SLASH, "/"},
+        {token::ASTERISK, "*"},
+        {token::INT, "5"},
+        {token::SEMICOLON, ";"},
+        {token::INT, "5"},
+        {token::LT, "<"},
+        {token::INT, "10"},
+        {token::GT, ">"},
+        {token::INT, "5"},
+        {token::SEMICOLON, ";"},
+        {token::IF, "if"},
+        {token::LPAREN, "("},
+        {token::INT, "5"},
+        {token::LT, "<"},
+        {token::INT, "10"},
+        {token::RPAREN, ")"},
+        {token::LBRACE, "{"},
+        {token::RETURN, "return"},
+        {token::TRUE, "true"},
+        {token::SEMICOLON, ";"},
+        {token::RBRACE, "}"},
+        {token::ELSE, "else"},
+        {token::LBRACE, "{"},
+        {token::RETURN, "return"},
+        {token::FALSE, "false"},
+        {token::SEMICOLON, ";"},
+        {token::RBRACE, "}"},
         {token::ENDOF, ""},
     };
     lexer::Lexer l = lexer::New(input);

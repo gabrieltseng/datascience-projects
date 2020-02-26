@@ -86,6 +86,24 @@ namespace lexer{
             else if (ch == '}') {
                 tok = newToken(token::RBRACE, ch);
             }
+            else if (ch == '*') {
+                tok = newToken(token::ASTERISK, ch);
+            }
+            else if (ch == '/') {
+                tok = newToken(token::SLASH, ch);
+            }
+            else if (ch == '-') {
+                tok = newToken(token::MINUS, ch);
+            }
+            else if (ch == '>') {
+                tok = newToken(token::GT, ch);
+            }
+            else if (ch == '<') {
+                tok = newToken(token::LT, ch);
+            }
+            else if (ch == '!') {
+                tok = newToken(token::BANG, ch);
+            }
             else if (ch == 0) {
                 tok.literal = "";
                 tok.type = token::ENDOF;

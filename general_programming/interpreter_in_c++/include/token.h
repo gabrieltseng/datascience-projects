@@ -20,6 +20,13 @@ const TokenType INT = "INT"; // 1343456
 // Operators
 const TokenType ASSIGN = "=";
 const TokenType PLUS = "+";
+const TokenType MINUS = "-";
+const TokenType BANG = "!";
+const TokenType ASTERISK = "*";
+const TokenType SLASH = "/";
+
+const TokenType LT = "<";
+const TokenType GT = ">";
 
 // Delimiters
 const TokenType COMMA = ",";
@@ -33,6 +40,11 @@ const TokenType RBRACE = "}";
 // Keywords
 const TokenType FUNCTION = "FUNCTION";
 const TokenType LET = "LET";
+const TokenType TRUE = "TRUE";
+const TokenType FALSE = "FALSE";
+const TokenType IF = "IF";
+const TokenType ELSE = "ELSE";
+const TokenType RETURN = "RETURN";
 
 token::TokenType LookupIdent(std::string ident);
 
