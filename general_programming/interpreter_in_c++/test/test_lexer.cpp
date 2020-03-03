@@ -9,7 +9,7 @@
 
 TEST_CASE("Test Next Token")
 {
-    std::string input = 
+    std::string input =
         "let five = 5; \n"
         "let ten = 10; \n \n"
         "let add = fn(x, y) { \n"
