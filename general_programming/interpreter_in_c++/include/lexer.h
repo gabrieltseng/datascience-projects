@@ -19,7 +19,7 @@ namespace lexer
         void skipWhitespace();
     } Lexer;
 
-    Lexer New(std::string);
+    Lexer& New(std::string &input);
 };
 
 #endif
