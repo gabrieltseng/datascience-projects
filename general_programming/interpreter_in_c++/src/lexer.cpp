@@ -1,6 +1,6 @@
 #include<string>
 #include "lexer.h"
-#include "token.h"
+#include "token.h" 
 
 
 bool isLetter(char ch) {
@@ -32,7 +32,7 @@ namespace lexer{
         position = readPosition;
         readPosition += 1;
         };
-
+    
     char lexer::Lexer::peekChar() {
         if (readPosition >= input.length()) {
             return '\0';  // signifies EOF
@@ -65,7 +65,7 @@ namespace lexer{
     }
 
     token::Token lexer::Lexer::nextToken() {
-
+            
             token::Token tok;
 
             skipWhitespace();
@@ -156,8 +156,8 @@ namespace lexer{
             return tok;
         };
 
-    lexer::Lexer& New(std::string &input){
-        static lexer::Lexer l = {.input = input};
+    lexer::Lexer New(std::string input){
+        lexer::Lexer l = {.input = input};
         l.readChar();
         return l;
     };
