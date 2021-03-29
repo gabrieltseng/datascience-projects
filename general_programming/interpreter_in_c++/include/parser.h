@@ -9,7 +9,7 @@
 
 
 namespace parser {
-    typedef struct {
+    typedef struct Parser {
         lexer::Lexer l;
         token::Token curToken;
         token::Token peekToken;
@@ -17,12 +17,16 @@ namespace parser {
         ast::Program* ParseProgram();
         ast::Statement* ParseStatement();
         ast::LetStatement* ParseLetStatement();
+        ast::ReturnStatement* ParseReturnStatement();
         bool ExpectPeek(token::TokenType t);
         bool CurTokenIs(token::TokenType t);
         bool PeekTokenIs(token::TokenType t);
+        void PeekError(token::TokenType t);
+        std::vector<std::string> errors;
+        std::vector<std::string> Errors();
     } Parser;
 
-    Parser& New(lexer::Lexer &l);
+    Parser New(lexer::Lexer &l);
 };
 
 #endif

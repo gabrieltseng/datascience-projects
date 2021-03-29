@@ -6,8 +6,8 @@
 
 namespace token {
     std::map<std::string, token::TokenType> keywords {
-        {"fn", token::FUNCTION}, 
-        {"let", token::LET}, 
+        {"fn", token::FUNCTION},
+        {"let", token::LET},
         {"true", token::TRUE},
         {"false", token::FALSE},
         {"if", token::IF},

@@ -9,6 +9,7 @@ namespace ast
 {
     typedef struct Node {
         virtual std::string TokenLiteral() {};
+        virtual ~Node() {};
     } Node;
 
     typedef struct Statement: Node {
@@ -37,6 +38,13 @@ namespace ast
         void StatementNode();
         virtual std::string TokenLiteral();
     } LetStatement;
+
+    typedef struct ReturnStatement: Statement {
+        token::Token Token;
+        Expression ReturnValue;
+        void StatementNode();
+        virtual std::string TokenLiteral();
+    } ReturnStatement;
 };
 
 #endif

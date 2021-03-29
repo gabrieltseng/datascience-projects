@@ -17,6 +17,10 @@ namespace ast {
         return Token.literal;
     }
 
+    std::string ast::ReturnStatement::TokenLiteral() {
+        return Token.literal;
+    };
+
     std::string ast::Identifier::TokenLiteral() {
         return Token.literal;
     };
