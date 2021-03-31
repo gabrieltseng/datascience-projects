@@ -9,6 +9,7 @@ namespace ast
 {
     typedef struct Node {
         virtual std::string TokenLiteral() {};
+        virtual std::string String() {};
         virtual ~Node() {};
     } Node;
 
@@ -20,9 +21,10 @@ namespace ast
         void ExpressionNode();
     } Expression;
 
-    typedef struct Program {
+    typedef struct Program: Node {
         std::vector<Statement *> Statements;
-        std::string TokenLiteral();
+        virtual std::string TokenLiteral();
+        virtual std::string String();
     } Program;
 
     typedef struct Identifier: Expression {
@@ -30,21 +32,33 @@ namespace ast
         std::string Value;
         void ExpressionNode();
         virtual std::string TokenLiteral();
+        virtual std::string String();
     } Identifier;
 
     typedef struct LetStatement: Statement {
         token::Token Token;
-        Identifier Name;  // this should be a pointer
+        Identifier Name;
+        Expression *Value;
         void StatementNode();
         virtual std::string TokenLiteral();
+        virtual std::string String();
     } LetStatement;
 
     typedef struct ReturnStatement: Statement {
         token::Token Token;
-        Expression ReturnValue;
+        Expression *ReturnValue;
         void StatementNode();
         virtual std::string TokenLiteral();
+        virtual std::string String();
     } ReturnStatement;
+
+    typedef struct ExpressionStatement: Statement {
+        token::Token Token;
+        Expression *Expression;
+        void StatementNode();
+        virtual std::string TokenLiteral();
+        virtual std::string String();
+    } ExpressionStatement;
 };
 
 #endif

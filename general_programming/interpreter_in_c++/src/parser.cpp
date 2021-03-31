@@ -52,7 +52,6 @@ namespace parser {
         while (!CurTokenIs(token::SEMICOLON)) {
             NextToken();
         };
-
         return s;
     };
 

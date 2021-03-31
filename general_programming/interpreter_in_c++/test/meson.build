@@ -1,6 +1,6 @@
 testexe = executable(
     'testexe', # test executable name
-    ['test_lexer.cpp', 'test_parser.cpp'], # tests source files to be compiled
+    ['test_lexer.cpp', 'test_parser.cpp', 'test_ast.cpp'], # tests source files to be compiled
     include_directories : inc,  # declared include directories in root :code:`meson.build`
     link_with : libmonkey) # link test executable with previously declared shared library :code:`libuuid`
 
