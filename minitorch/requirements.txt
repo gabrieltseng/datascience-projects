@@ -4,6 +4,6 @@ pytest == 6.0.1
 pytest-runner == 5.2
 hypothesis == 4.38
 flake8==3.8.3
-black==19.10b0
+black==24.3.0
 colorama==0.4.3
 pep8-naming==0.11.1
